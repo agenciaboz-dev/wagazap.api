@@ -1,0 +1,24 @@
+name: washimaenagazap.api
+
+services:
+  api:
+    image: nandoburgos/washimaenagazap.api
+    container_name: washimaenagazap.api
+    environment:
+      - PORT=4105
+      - DATABASE_URL=mysql://boz:Ewhblt69%21%40%23@boz.app.br:3306/boz
+    ports:
+      - "4105:4105"
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - static_volume:/app/static
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 1256M
+
+volumes:
+  static_volume:
+    name: "washimaenagazap_static_files"

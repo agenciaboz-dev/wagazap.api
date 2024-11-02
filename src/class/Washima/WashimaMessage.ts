@@ -1,0 +1,114 @@
+import { Prisma } from "@prisma/client"
+import { prisma } from "../../prisma"
+import WAWebJS from "whatsapp-web.js"
+import { WashimaMessageId } from "./Washima"
+
+export type MessageType = "ptt" | "video" | "image" | "text" | "revoked" | "sticker" | "audio" | "chat" | "document" | "sticker"
+
+export enum MessageAck {
+    error = -1,
+    pending = 0,
+    sent = 1,
+    received = 2,
+    read = 3,
+    played = 4,
+}
+
+export type WashimaMessagePrisma = Prisma.WashimaMessageGetPayload<{}>
+
+
+export interface WashimaMessageForm {
+    message: WAWebJS.Message
+    washima_id: string
+    chat_id: string
+    isGroup?: boolean
+}
+
+export class WashimaMessage {
+    sid: string
+    washima_id: string
+    chat_id: string
+
+    id: WashimaMessageId
+    author?: string | null
+    body: string
+    from: string
+    fromMe: boolean
+    hasMedia: boolean
+    timestamp: number
+    to: string
+    type: MessageType
+    ack?: MessageAck | null
+
+    static async getChatMessages(chat_id: string, offset: number = 0) {
+        console.log(offset)
+        const data = await prisma.washimaMessage.findMany({ where: { chat_id }, orderBy: { timestamp: "desc" }, skip: offset, take: 10 })
+        return data.map((item) => new WashimaMessage(item))
+    }
+
+    static async new(data: WashimaMessageForm) {
+        const message = data.message
+
+        if (data.isGroup && !message.fromMe) {
+            const contact = await message.getContact()
+            message.author = contact.name || `${contact.pushname} - ${contact.number}`
+        }
+
+        const saved = await prisma.washimaMessage.create({
+            data: {
+                washima_id: data.washima_id,
+                chat_id: data.chat_id,
+                sid: message.id._serialized,
+                id: JSON.stringify(message.id),
+                timestamp: JSON.stringify(message.timestamp),
+                body: message.body || "",
+                from: message.from || "",
+                fromMe: message.fromMe || false,
+                hasMedia: message.hasMedia || false,
+                to: message.to || "",
+                type: message.type || "",
+                ack: message.ack || 0,
+                author: message.author || "",
+            },
+        })
+
+        return new WashimaMessage(saved)
+    }
+
+    static async update(message: WAWebJS.Message) {
+        console.log(message.author)
+        try {
+            const data = await prisma.washimaMessage.update({
+                where: { sid: message.id._serialized },
+                data: {
+                    ack: message.ack,
+                    body: message.body,
+                    timestamp: JSON.stringify(message.timestamp),
+                    type: message.type,
+                    author: message.author,
+                },
+            })
+
+            return new WashimaMessage(data)
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    constructor(data: WashimaMessagePrisma) {
+        this.sid = data.sid
+        this.washima_id = data.washima_id
+        this.chat_id = data.chat_id
+
+        this.id = JSON.parse(data.id)
+        this.author = data.author
+        this.body = data.body
+        this.from = data.from
+        this.fromMe = data.fromMe
+        this.hasMedia = data.hasMedia
+        this.timestamp = Number(data.timestamp)
+        this.to = data.to
+        this.type = data.type as MessageType
+        this.ack = data.ack
+    }
+}
