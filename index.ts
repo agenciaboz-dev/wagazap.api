@@ -16,7 +16,7 @@ const metricsMiddleware = express_prom_bundle({
     includePath: true,
     includeStatusCode: true,
 
-    customLabels: { project_name: "washimaenagazap.api" },
+    customLabels: { project_name: "wagazap.api" },
     promClient: {
         collectDefaultMetrics: {
             // Optionally include default metrics
