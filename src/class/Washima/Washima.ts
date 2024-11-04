@@ -12,12 +12,17 @@ import { writeFileSync } from "fs"
 import { WashimaMessage } from "./WashimaMessage"
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library"
 import { WashimaGroupUpdate, WashimaGroupUpdateForm } from "./WashimaGroupUpdate"
+import { getDirectorySize } from "../../tools/getDirectorySize"
+import { deleteDirectory } from "../../tools/deleteDirectory"
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
-export type WashimaPrisma = Prisma.WashimaGetPayload<{  }>
+export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
 export type WashimaMediaPrisma = Prisma.WashimaMediaGetPayload<{}>
 export type WashimaProfilePicPrisma = Prisma.WashimaProfilePicGetPayload<{}>
-export interface WashimaDiskMetrics { messages: number; media: number }
+export interface WashimaDiskMetrics {
+    messages: number
+    media: number
+}
 
 export type WashimaForm = Omit<
     WithoutFunctions<Washima>,
@@ -62,7 +67,7 @@ export class WashimaMedia {
         console.log("Data size:", Buffer.byteLength(data.data, "utf8"), "bytes")
         try {
             const media_prisma = await prisma.washimaMedia.create({
-                data: { data: data.data, filename: data.filename, message_id: data.message_id, mimetype: data.mimetype },
+                data: { data: data.data, filename: data.filename, message_id: data.message_id, mimetype: data.mimetype, washima_id: data.washima_id },
             })
             return new WashimaMedia(media_prisma)
         } catch (error) {
@@ -75,30 +80,6 @@ export class WashimaMedia {
         if (!data) return
 
         return new WashimaMedia(data)
-    }
-
-    static async getCached(message: Message) {
-        const id = message.id._serialized
-        const media = await WashimaMedia.get(id)
-
-        if (media) {
-            console.log("found cached")
-            return media
-        }
-
-        try {
-            const first_time_media = await message.downloadMedia()
-            const new_cached = await WashimaMedia.new({
-                data: first_time_media.data,
-                filename: (first_time_media.filename || id) + "." + first_time_media.mimetype.split("/")[1].split(";")[0],
-                message_id: id,
-                mimetype: first_time_media.mimetype,
-            })
-            return new_cached
-        } catch (error) {
-            console.log(error)
-            console.log(id)
-        }
     }
 
     constructor(data: WashimaMediaPrisma) {
@@ -310,7 +291,7 @@ export class Washima {
                     const chat = await message.getChat()
 
                     if (message.hasMedia) {
-                        await WashimaMedia.getCached(message)
+                        await this.getCachedMedia(message)
                     }
 
                     const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
@@ -447,7 +428,7 @@ export class Washima {
     }
 
     async getMedia(message: Message) {
-        const media = await WashimaMedia.getCached(message)
+        const media = await this.getCachedMedia(message)
 
         return media
     }
@@ -491,7 +472,10 @@ export class Washima {
             const whatsapp_url = await contact!.getProfilePicUrl()
             const response = await axios.get(whatsapp_url, { responseType: "arraybuffer" })
             const buffer = Buffer.from(response.data, "binary")
-            const url = saveFile(`/washima/profilePics/`, { name: target_id + ".jpg", file: buffer }).url + "?time=" + new Date().getTime().toString()
+            const url =
+                saveFile(`/washima/${this.id}/profilePics`, { name: target_id + ".jpg", file: buffer }).url +
+                "?time=" +
+                new Date().getTime().toString()
             const now = new Date().getTime().toString()
 
             const cached = await prisma.washimaProfilePic.findUnique({ where: { chat_id: target_id } })
@@ -507,6 +491,31 @@ export class Washima {
             return new WashimaProfilePic(new_cache)
         } catch (error) {
             console.log(error)
+        }
+    }
+
+    async getCachedMedia(message: Message) {
+        const id = message.id._serialized
+        const media = await WashimaMedia.get(id)
+
+        if (media) {
+            console.log("found cached")
+            return media
+        }
+
+        try {
+            const first_time_media = await message.downloadMedia()
+            const new_cached = await WashimaMedia.new({
+                data: first_time_media.data,
+                filename: (first_time_media.filename || id) + "." + first_time_media.mimetype.split("/")[1].split(";")[0],
+                message_id: id,
+                mimetype: first_time_media.mimetype,
+                washima_id: this.id,
+            })
+            return new_cached
+        } catch (error) {
+            console.log(error)
+            console.log(id)
         }
     }
 
@@ -579,16 +588,27 @@ export class Washima {
     `
         const { AVG_ROW_LENGTH } = avgRowData
         const avgRowLengthInMB = Number(AVG_ROW_LENGTH) / (1024 * 1024)
+
         return avgRowLengthInMB
     }
 
     async getDiskUsage() {
         const message_metrics = await this.getTableUsage("WashimaMessage")
+        const messages_count = await prisma.washimaMessage.count({ where: { washima_id: this.id } })
         const media_metrics = await this.getTableUsage("WashimaMedia")
-        console.log({ message_metrics, media_metrics })
-        this.diskMetrics = { media: media_metrics, messages: message_metrics }
+        const media_count = await prisma.washimaMedia.count({ where: { washima_id: this.id } })
+        const profile_pic_metrics = await getDirectorySize(`static/washima/${this.id}/profilePics`)
+        console.log({ message_metrics, media_metrics, profile_pic_metrics })
+        this.diskMetrics = { media: media_metrics * media_count + profile_pic_metrics, messages: message_metrics * messages_count }
 
         return this.diskMetrics
+    }
+
+    async clearMedia() {
+        const profilePic = await prisma.washimaProfilePic.deleteMany()
+        await deleteDirectory(`static/washima/${this.id}/profilePics`)
+        const deletion = await prisma.washimaMedia.deleteMany({ where: { washima_id: this.id } })
+        return deletion.count
     }
 
     toJSON() {

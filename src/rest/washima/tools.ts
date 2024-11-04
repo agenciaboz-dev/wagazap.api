@@ -19,4 +19,17 @@ router.get("/disk-usage", async (request: Request, response: Response) => {
     }
 })
 
+router.delete("/media", async (request: Request, response: Response) => {
+    const data = request.body as { washima_id: string }
+
+    try {
+        const washima = await Washima.query(data.washima_id)
+        const deletion_count = await washima.clearMedia()
+        response.json(deletion_count)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 export default router

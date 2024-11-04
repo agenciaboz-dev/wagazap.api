@@ -48,12 +48,14 @@ model WashimaMedia {
     filename    String
     data        String      @db.LongText
     mimetype    String
+    washima_id  String
 }
 
 model WashimaProfilePic {
     chat_id         String      @id
     last_updated    String
     url             String      @db.LongText
+    washima_id      String
 }
 
 model WashimaMessage {
