@@ -6,6 +6,7 @@ import { UploadedFile } from "express-fileupload"
 import * as fs from "fs"
 import { getIoInstance } from "../io/socket"
 import { FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappBusiness/Logs"
+import { HandledError, HandledErrorCode } from "./HandledError"
 
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id">
@@ -57,7 +58,7 @@ export class Nagazap {
 
     static async get() {
         const data = await prisma.nagazap.findFirst()
-        if (!data) throw "no nagazap found"
+        if (!data) throw new HandledError({ code: 1, text: "no nagazap found" })
 
         const nagazap = new Nagazap(data)
         return nagazap
@@ -72,7 +73,10 @@ export class Nagazap {
                 nagazap.bake()
             }
         } catch (error) {
-            console.log(error)
+            if (error instanceof HandledError && error.code === HandledErrorCode.no_nagazap) {
+            } else {
+                console.log(error)
+            }
         }
     }
 
