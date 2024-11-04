@@ -611,6 +611,11 @@ export class Washima {
         return deletion.count
     }
 
+    async clearMessages() {
+        const deletion = await prisma.washimaMessage.deleteMany({ where: { washima_id: this.id } })
+        return deletion.count
+    }
+
     toJSON() {
         return { ...this, client: null }
     }
