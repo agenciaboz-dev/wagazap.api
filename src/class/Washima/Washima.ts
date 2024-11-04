@@ -114,7 +114,6 @@ export class Washima {
     number: string
     created_at: string
     active: boolean
-    created_by: number
     ready: boolean
 
     client: Client
@@ -132,14 +131,14 @@ export class Washima {
     }
 
     static async query(id: string) {
-        const data = await prisma.washima.findUnique({ where: { id },  })
+        const data = await prisma.washima.findUnique({ where: { id } })
         if (!data) throw "washima não encontrado"
         const washima = new Washima(data)
         return washima
     }
 
     static async list() {
-        const data = await prisma.washima.findMany({  })
+        const data = await prisma.washima.findMany({})
         const list = data.map((item) => new Washima(item))
         return list
     }
@@ -163,7 +162,6 @@ export class Washima {
             data: {
                 id: uid(),
                 created_at: new Date().getTime().toString(),
-                created_by: data.created_by,
                 name: data.name,
                 number: data.number,
             },
@@ -227,7 +225,6 @@ export class Washima {
         this.number = data.number
         this.created_at = data.created_at
         this.active = data.active
-        this.created_by = data.created_by
         this.ready = false
 
         this.client = new Client({
