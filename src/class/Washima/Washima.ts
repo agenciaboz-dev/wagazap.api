@@ -17,6 +17,7 @@ import { WashimaGroupUpdate, WashimaGroupUpdateForm } from "./WashimaGroupUpdate
 export type WashimaPrisma = Prisma.WashimaGetPayload<{  }>
 export type WashimaMediaPrisma = Prisma.WashimaMediaGetPayload<{}>
 export type WashimaProfilePicPrisma = Prisma.WashimaProfilePicGetPayload<{}>
+export interface WashimaDiskMetrics { messages: number; media: number }
 
 export type WashimaForm = Omit<
     WithoutFunctions<Washima>,
@@ -121,6 +122,7 @@ export class Washima {
     info: WAWebJS.ClientInfo
     chats: WAWebJS.Chat[]
     contact: string
+    diskMetrics?: WashimaDiskMetrics
 
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
@@ -297,7 +299,7 @@ export class Washima {
                     console.log(error)
                 }
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
-                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index].unreadCount || 0) + 1 }
+                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
                 io.emit("washima:update", this)
             })
@@ -313,7 +315,7 @@ export class Washima {
 
                     const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
 
-                    this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index].unreadCount || 0) + 1 }
+                    this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
                     const washima_message = await WashimaMessage.new({
                         chat_id: chat.id._serialized,
@@ -451,12 +453,21 @@ export class Washima {
     }
 
     async restart() {
-        this.qrcode = ""
-        this.ready = false
-        await this.client.destroy()
-        await this.client.initialize()
-        const io = getIoInstance()
-        io.emit("washima:update", this)
+        try {
+            console.log("merda")
+            this.qrcode = ""
+            console.log("merda 2")
+            this.ready = false
+            console.log("merda 3")
+            await this.client.destroy()
+            console.log("merda 4")
+            await this.client.initialize()
+            console.log("merda 5")
+            const io = getIoInstance()
+            console.log("merda 6")
+            io.emit("washima:update", this)
+            console.log("merda 7")
+        } catch (error) {}
     }
 
     async getMediaMeta(message_id: string) {
@@ -480,8 +491,7 @@ export class Washima {
             const whatsapp_url = await contact!.getProfilePicUrl()
             const response = await axios.get(whatsapp_url, { responseType: "arraybuffer" })
             const buffer = Buffer.from(response.data, "binary")
-            const url =
-                saveFile(`/washima/${target_id}/`, { name: target_id + ".jpg", file: buffer }).url + "?time=" + new Date().getTime().toString()
+            const url = saveFile(`/washima/profilePics/`, { name: target_id + ".jpg", file: buffer }).url + "?time=" + new Date().getTime().toString()
             const now = new Date().getTime().toString()
 
             const cached = await prisma.washimaProfilePic.findUnique({ where: { chat_id: target_id } })
@@ -556,6 +566,29 @@ export class Washima {
         }
 
         console.log("finished")
+    }
+
+    async getTableUsage(table: string) {
+        interface AvgRowLength {
+            AVG_ROW_LENGTH: number
+        }
+        const [avgRowData] = await prisma.$queryRaw<AvgRowLength[]>`
+        SELECT AVG_ROW_LENGTH
+        FROM information_schema.TABLES
+        WHERE TABLE_NAME = ${table}
+    `
+        const { AVG_ROW_LENGTH } = avgRowData
+        const avgRowLengthInMB = Number(AVG_ROW_LENGTH) / (1024 * 1024)
+        return avgRowLengthInMB
+    }
+
+    async getDiskUsage() {
+        const message_metrics = await this.getTableUsage("WashimaMessage")
+        const media_metrics = await this.getTableUsage("WashimaMedia")
+        console.log({ message_metrics, media_metrics })
+        this.diskMetrics = { media: media_metrics, messages: message_metrics }
+
+        return this.diskMetrics
     }
 
     toJSON() {

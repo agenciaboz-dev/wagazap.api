@@ -1,6 +1,6 @@
 import express, { Express, Request, Response } from "express"
 import nagazap from "./src/rest/nagazap"
-import washima from "./src/rest/washima"
+import washima from "./src/rest/washima/washima"
 
 export const router = express.Router()
 

@@ -1,8 +1,12 @@
 import express, { Express, Request, Response } from "express"
-import { Washima, WashimaForm } from "../class/Washima/Washima"
-import { prisma } from "../prisma"
-import { getIoInstance } from "../io/socket"
+import { Washima, WashimaForm } from "../../class/Washima/Washima"
+import { prisma } from "../../prisma"
+import { getIoInstance } from "../../io/socket"
+import tools from "./tools"
+
 const router = express.Router()
+
+router.use("/tools", tools)
 
 router.get("/", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
@@ -187,6 +191,5 @@ router.post("/fetch-messages-whatsappweb", async (request: Request, response: Re
         response.status(500).send(error)
     }
 })
-
 
 export default router
