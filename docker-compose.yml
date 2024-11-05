@@ -6,7 +6,7 @@ services:
     container_name: wagazap.api
     environment:
       - PORT=8105
-      - DATABASE_URL=mysql://boz:Ewhblt69%21%40%23@localhost:3306/wagazap
+      - DATABASE_URL=mysql://boz:Ewhblt69%21%40%23@mysql:3306/wagazap
       - URL=https://api.wagazap.boz.app.br
     ports:
       - "8105:8105"
