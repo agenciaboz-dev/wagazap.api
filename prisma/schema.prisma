@@ -93,8 +93,9 @@ model WashimaGroupUpdates {
 model User {
     id          String          @id
     name        String
-    email       String
+    email       String          @unique
     password    String          @db.Text
+    admin       Boolean         @default(false)
 
     washimas    Washima[]
 }

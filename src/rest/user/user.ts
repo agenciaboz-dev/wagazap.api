@@ -19,4 +19,26 @@ router.post("/", async (request: Request, response: Response) => {
     }
 })
 
+router.get("/make-admin", async (request: Request, response: Response) => {
+    const email = request.query.email as string | undefined
+    console.log(email)
+
+    if (email) {
+        try {
+            const user = await User.findByEmail(email)
+            if (user) {
+                await user.update({ admin: true })
+                response.json(user)
+            } else {
+                response.status(404).send("user not found")
+            }
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("email param is required")
+    }
+})
+
 export default router

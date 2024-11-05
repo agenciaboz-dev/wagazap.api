@@ -3,6 +3,7 @@ import { Washima, WashimaForm } from "../../class/Washima/Washima"
 import { prisma } from "../../prisma"
 import { getIoInstance } from "../../io/socket"
 import tools from "./tools"
+import { User } from "../../class/User"
 
 const router = express.Router()
 
@@ -21,8 +22,17 @@ router.get("/", async (request: Request, response: Response) => {
             response.status(500).send(error)
         }
     } else {
-        const washimas = Washima.washimas.filter((washima) => washima.users.find((user) => user.id === user_id))
-        response.json(washimas)
+        if (user_id) {
+            const user = await User.findById(user_id)
+            if (user) {
+                const washimas = user.admin
+                    ? Washima.washimas
+                    : Washima.washimas.filter((washima) => washima.users.find((user) => user.id === user_id))
+                response.json(washimas)
+            } else {
+                response.status(404).send("user not found")
+            }
+        }
     }
 })
 
