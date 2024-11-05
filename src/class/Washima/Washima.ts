@@ -253,21 +253,18 @@ export class Washima {
             this.client.on("ready", async () => {
                 console.log(`${this.name} - ${this.number} client is ready, initializing data`)
                 this.qrcode = ""
+                this.ready = false
                 io.emit("washima:ready", this.id)
                 // io.emit("washima:update", this)
 
-                io.emit(`washima:${this.id}:init`, "info")
+                io.emit(`washima:${this.id}:init`, "Configurando metadados", 1)
                 this.info = this.client.info
-                console.log(`washima:${this.id}:init`, "info")
-                io.emit(`washima:${this.id}:init`, "chats")
+                io.emit(`washima:${this.id}:init`, "Buscando chats", 2)
                 this.chats = await this.client.getChats()
-                console.log(`washima:${this.id}:init`, "chats")
                 this.ready = true
-                console.log(`washima:${this.id}:init`, "contacts")
-                io.emit(`washima:${this.id}:init`, "contacts")
+                io.emit(`washima:${this.id}:init`, "Carregando informações do contato", 3)
                 this.contact = await this.getContact(this.info.wid._serialized)
-                console.log(`washima:${this.id}:init`, "ready")
-                io.emit(`washima:${this.id}:init`, "ready")
+                io.emit(`washima:${this.id}:init`, "Pronto", 4)
 
                 io.emit("washima:update", this)
 
@@ -317,7 +314,7 @@ export class Washima {
                     })
 
                     io.emit("washima:message", { chat, message: washima_message }, this.id)
-                    io.emit(`washima:${this.id}:message`, { chat, message: washima_message })
+                    io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
                     io.emit("washima:update", this)
                 } catch (error) {
                     console.log({ error })
