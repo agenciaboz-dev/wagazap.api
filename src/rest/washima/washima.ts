@@ -112,7 +112,9 @@ router.get("/chat", async (request: Request, response: Response) => {
             } else {
                 try {
                     console.log(offset, take)
-                    const chats = washima.chats.slice(Number(offset || 0), Number(offset || 0) + Number(take || 0))
+                    const chats = washima.chats
+                        .sort((a, b) => b.lastMessage?.timestamp - a.lastMessage?.timestamp)
+                        .slice(Number(offset || 0), Number(offset || 0) + Number(take || 0))
                     response.json(chats)
                 } catch (error) {
                     console.log(error)
