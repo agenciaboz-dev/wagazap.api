@@ -500,7 +500,7 @@ export class Washima {
                 return new WashimaProfilePic(updated)
             }
 
-            const new_cache = await prisma.washimaProfilePic.create({ data: { chat_id: target_id, last_updated: now, url } })
+            const new_cache = await prisma.washimaProfilePic.create({ data: { chat_id: target_id, last_updated: now, url, washima_id: this.id } })
             return new WashimaProfilePic(new_cache)
         } catch (error) {
             console.log(error)
