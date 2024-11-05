@@ -15,11 +15,11 @@ services:
     restart: unless-stopped
     volumes:
       - static_volume:/app/static
-    deploy:
-      resources:
-        limits:
-          cpus: '1.5'
-          memory: 1512M
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1.5'
+    #       memory: 1512M
 
   mysql:
     image: mysql:5.7
