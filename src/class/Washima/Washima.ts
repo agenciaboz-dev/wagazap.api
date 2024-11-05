@@ -251,19 +251,23 @@ export class Washima {
             })
 
             this.client.on("ready", async () => {
-                console.log(`${this.name} - ${this.number} client is ready`)
+                console.log(`${this.name} - ${this.number} client is ready, initializing data`)
                 this.qrcode = ""
                 io.emit("washima:ready", this.id)
                 // io.emit("washima:update", this)
 
+                io.emit(`washima:${this.id}:init`, "info")
                 this.info = this.client.info
-                console.log("here")
+                console.log(`washima:${this.id}:init`, "info")
+                io.emit(`washima:${this.id}:init`, "chats")
                 this.chats = await this.client.getChats()
-                console.log("here2")
+                console.log(`washima:${this.id}:init`, "chats")
                 this.ready = true
-                console.log("here3")
+                console.log(`washima:${this.id}:init`, "contacts")
+                io.emit(`washima:${this.id}:init`, "contacts")
                 this.contact = await this.getContact(this.info.wid._serialized)
-                console.log("here4")
+                console.log(`washima:${this.id}:init`, "ready")
+                io.emit(`washima:${this.id}:init`, "ready")
 
                 io.emit("washima:update", this)
 
