@@ -254,7 +254,7 @@ export class Washima {
                 this.qrcode = ""
                 this.ready = false
                 io.emit("washima:ready", this.id)
-                // io.emit("washima:update", this)
+                io.emit("washima:update", this)
 
                 io.emit(`washima:${this.id}:init`, "Configurando metadados", 1)
                 this.info = this.client.info
