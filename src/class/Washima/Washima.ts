@@ -145,6 +145,11 @@ export class Washima {
         }
     }
 
+    static push(washima: Washima) {
+        Washima.washimas = Washima.washimas.filter((item) => item.id !== washima.id)
+        Washima.washimas.push(washima)
+    }
+
     static async new(data: WashimaForm) {
         const washima_prisma = await prisma.washima.create({
             data: {
@@ -158,7 +163,7 @@ export class Washima {
 
         const washima = new Washima(washima_prisma)
 
-        Washima.washimas.push(washima)
+        Washima.push(washima)
         return washima
     }
 
@@ -233,7 +238,7 @@ export class Washima {
         try {
             const users = await User.getUsersFromWashimaId(this.id)
             this.users = users
-            Washima.washimas.push(this)
+            Washima.push(this)
             const io = getIoInstance()
             io.emit("washima:update", this)
             await this.client.initialize()
