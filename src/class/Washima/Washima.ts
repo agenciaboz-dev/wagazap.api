@@ -257,13 +257,17 @@ export class Washima {
                 io.emit("washima:update", this)
 
                 io.emit(`washima:${this.id}:init`, "Configurando metadados", 1)
+                console.log(`washima:${this.id}:init`, "Configurando metadados", 1)
                 this.info = this.client.info
                 io.emit(`washima:${this.id}:init`, "Buscando chats", 2)
+                console.log(`washima:${this.id}:init`, "Buscando chats", 2)
                 this.chats = await this.client.getChats()
                 this.ready = true
                 io.emit(`washima:${this.id}:init`, "Carregando informações do contato", 3)
+                console.log(`washima:${this.id}:init`, "Carregando informações do contato", 3)
                 this.contact = await this.getContact(this.info.wid._serialized)
                 io.emit(`washima:${this.id}:init`, "Pronto", 4)
+                console.log(`washima:${this.id}:init`, "Pronto", 4)
 
                 io.emit("washima:update", this)
 
