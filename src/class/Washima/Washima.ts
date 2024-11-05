@@ -153,8 +153,7 @@ export class Washima {
         })
 
         const washima = new Washima(washima_prisma)
-        await washima.initialize()
-        await washima.fetchAndSaveAllMessages()
+
         Washima.washimas.push(washima)
         return washima
     }

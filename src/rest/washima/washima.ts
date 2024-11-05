@@ -34,6 +34,9 @@ router.post("/", async (request: Request, response: Response) => {
 
         const io = getIoInstance()
         io.emit("washima:update", washima)
+
+        await washima.initialize()
+        await washima.fetchAndSaveAllMessages()
     } catch (error) {
         console.log(error)
         response.status(500).send(error)
