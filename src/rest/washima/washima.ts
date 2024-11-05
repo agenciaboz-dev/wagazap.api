@@ -96,20 +96,32 @@ router.get("/chat", async (request: Request, response: Response) => {
     const chat_id = request.query.chat_id as string | undefined
     const is_group = request.query.is_group as string | undefined
     const offset = request.query.offset as string | undefined
+    const take = request.query.take as string | undefined
 
-    if (washima_id && chat_id) {
-        try {
-            const washima = Washima.find(washima_id)
-            if (washima) {
-                const chat = await washima.buildChat(chat_id, Number(offset || 0), !!is_group)
-                response.json(chat)
+    if (washima_id) {
+        const washima = Washima.find(washima_id)
+        if (washima) {
+            if (chat_id) {
+                try {
+                    const chat = await washima.buildChat(chat_id, Number(offset || 0), !!is_group)
+                    response.json(chat)
+                } catch (error) {
+                    console.log(error)
+                    response.status(500).send(error)
+                }
+            } else {
+                try {
+                    console.log(offset, take)
+                    const chats = washima.chats.slice(Number(offset || 0), Number(offset || 0) + Number(take || 0))
+                    response.json(chats)
+                } catch (error) {
+                    console.log(error)
+                    response.status(500).send(error)
+                }
             }
-        } catch (error) {
-            console.log(error)
-            response.status(500).send(error)
         }
     } else {
-        response.status(400).send("washima_id and chat_id params are required")
+        response.status(400).send("washima_id param is required")
     }
 })
 

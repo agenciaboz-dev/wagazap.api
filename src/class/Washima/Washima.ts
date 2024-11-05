@@ -277,6 +277,7 @@ export class Washima {
                 try {
                     const updated = await WashimaMessage.update(message)
                     io.emit("washima:message:update", updated, chat.id._serialized)
+                    io.emit(`washima:${this.id}:message`, { chat, message: updated })
                 } catch (error) {
                     console.log(error)
                 }
@@ -307,6 +308,7 @@ export class Washima {
                     })
 
                     io.emit("washima:message", { chat, message: washima_message }, this.id)
+                    io.emit(`washima:${this.id}:message`, { chat, message: washima_message })
                     io.emit("washima:update", this)
                 } catch (error) {
                     console.log({ error })
