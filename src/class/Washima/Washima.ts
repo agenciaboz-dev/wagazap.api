@@ -64,7 +64,8 @@ export class WashimaMedia {
 
     static async new(data: WashimaMediaPrisma) {
         console.log("creating new cache")
-        console.log("Data size:", Buffer.byteLength(data.data, "utf8"), "bytes")
+        const size = (Buffer.byteLength(data.data, "utf8") / (1024 * 1024)).toFixed(2)
+        console.log("Data size:", size, "Mb")
         try {
             const media_prisma = await prisma.washimaMedia.create({
                 data: { data: data.data, filename: data.filename, message_id: data.message_id, mimetype: data.mimetype, washima_id: data.washima_id },
@@ -532,6 +533,7 @@ export class Washima {
 
     async fetchAndSaveAllMessages(options?: { groupOnly?: boolean }) {
         if (!this.ready || !this.chats.length) return
+        const io = getIoInstance()
 
         console.log(`fetching messages for washima ${this.name}`)
 
@@ -539,12 +541,14 @@ export class Washima {
 
         for (const [chat_index, chat] of chats.entries()) {
             console.log(`loading messages for chat ${chat.name}. ${chat_index + 1}/${chats.length}`)
+            io.emit(`washima:${this.id}:sync:chat`, chat_index + 1, chats.length)
 
             try {
                 const messages = await chat.fetchMessages({ limit: Number.MAX_VALUE })
 
                 for (const [index, message] of messages.entries()) {
                     console.log(`fetching message ${index + 1}/${messages.length} from chat ${chat_index + 1}/${chats.length}`)
+                    io.emit(`washima:${this.id}:sync:messages`, index + 1, messages.length)
 
                     try {
                         const washima_message = await WashimaMessage.new({
