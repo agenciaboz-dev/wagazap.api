@@ -46,7 +46,7 @@ model Washima {
 model WashimaMedia {
     message_id  String      @id
     filename    String
-    url         String      @db.Text
+    data        String      @db.LongText
     mimetype    String
     washima_id  String
 }
