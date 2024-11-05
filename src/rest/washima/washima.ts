@@ -10,6 +10,7 @@ router.use("/tools", tools)
 
 router.get("/", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
+    const user_id = request.query.user_id as string | undefined
 
     if (washima_id) {
         try {
@@ -20,7 +21,7 @@ router.get("/", async (request: Request, response: Response) => {
             response.status(500).send(error)
         }
     } else {
-        const washimas = Washima.washimas
+        const washimas = Washima.washimas.filter((washima) => washima.users.find((user) => user.id === user_id))
         response.json(washimas)
     }
 })

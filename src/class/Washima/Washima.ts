@@ -15,6 +15,7 @@ import { WashimaGroupUpdate, WashimaGroupUpdateForm } from "./WashimaGroupUpdate
 import { getDirectorySize } from "../../tools/getDirectorySize"
 import { deleteDirectory } from "../../tools/deleteDirectory"
 import Fuse from "fuse.js"
+import { User } from "../User"
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
@@ -27,8 +28,8 @@ export interface WashimaDiskMetrics {
 
 export type WashimaForm = Omit<
     WithoutFunctions<Washima>,
-    "id" | "created_at" | "active" | "client" | "qrcode" | "ready" | "info" | "chats" | "contact"
->
+    "id" | "created_at" | "active" | "client" | "qrcode" | "ready" | "info" | "chats" | "contact" | "users"
+> & { user_id: string }
 
 export interface WashimaMessageId {
     fromMe: boolean
@@ -107,6 +108,8 @@ export class Washima {
     contact: string
     diskMetrics?: WashimaDiskMetrics
 
+    users: User[] = []
+
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
 
@@ -149,6 +152,7 @@ export class Washima {
                 created_at: new Date().getTime().toString(),
                 name: data.name,
                 number: data.number,
+                users: { connect: { id: data.user_id } },
             },
         })
 
@@ -225,7 +229,10 @@ export class Washima {
 
     async initialize(queue?: Washima[]) {
         console.log(`initializing ${this.name} - ${this.number}`)
+
         try {
+            const users = await User.getUsersFromWashimaId(this.id)
+            this.users = users
             Washima.washimas.push(this)
             const io = getIoInstance()
             io.emit("washima:update", this)

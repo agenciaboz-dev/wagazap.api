@@ -41,6 +41,8 @@ model Washima {
     created_at      String
     active          Boolean             @default(true)
 
+    users           User[]
+
 }
 
 model WashimaMedia {
@@ -86,4 +88,13 @@ model WashimaGroupUpdates {
     recipientIds String         @db.LongText
     timestamp   String
     type        String
+}
+
+model User {
+    id          String          @id
+    name        String
+    email       String
+    password    String          @db.Text
+
+    washimas    Washima[]
 }
