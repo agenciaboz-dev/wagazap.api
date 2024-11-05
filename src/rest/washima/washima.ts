@@ -204,4 +204,24 @@ router.post("/fetch-messages-whatsappweb", async (request: Request, response: Re
     }
 })
 
+router.get("/search", async (request: Request, response: Response) => {
+    const washima_id = request.query.washima_id as string | undefined
+    const search = request.query.search as string | undefined
+
+    if (washima_id) {
+        try {
+            const washima = Washima.find(washima_id)
+            if (washima) {
+                const result = await washima.search(search || "")
+                response.json(result)
+            }
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("washima_id param is required")
+    }
+})
+
 export default router

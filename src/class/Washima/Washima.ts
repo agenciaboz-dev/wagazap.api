@@ -14,6 +14,7 @@ import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library"
 import { WashimaGroupUpdate, WashimaGroupUpdateForm } from "./WashimaGroupUpdate"
 import { getDirectorySize } from "../../tools/getDirectorySize"
 import { deleteDirectory } from "../../tools/deleteDirectory"
+import Fuse from "fuse.js"
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
@@ -212,7 +213,7 @@ export class Washima {
         this.ready = false
 
         this.client = new Client({
-            authStrategy: new LocalAuth({ dataPath: `static/washima/whatsapp.auth.${this.id}` }),
+            authStrategy: new LocalAuth({ dataPath: `static/washima/auth/whatsapp.auth.${this.id}` }),
             puppeteer: {
                 args: ["--no-sandbox", "--disable-setuid-sandbox"],
                 executablePath: "/usr/bin/google-chrome-stable",
@@ -253,12 +254,16 @@ export class Washima {
                 console.log(`${this.name} - ${this.number} client is ready`)
                 this.qrcode = ""
                 io.emit("washima:ready", this.id)
-                io.emit("washima:update", this)
+                // io.emit("washima:update", this)
 
                 this.info = this.client.info
+                console.log("here")
                 this.chats = await this.client.getChats()
+                console.log("here2")
                 this.ready = true
+                console.log("here3")
                 this.contact = await this.getContact(this.info.wid._serialized)
+                console.log("here4")
 
                 io.emit("washima:update", this)
 
@@ -425,9 +430,14 @@ export class Washima {
     }
 
     async getContact(contact_id: string) {
-        const contact = await this.client.getContactById(contact_id)
+        try {
+            const contact = await this.client.getContactById(contact_id)
 
-        return contact.name || contact.pushname ? `${contact.pushname} - ${contact.number}` : contact.number
+            return contact.name || contact.pushname ? `${contact.pushname} - ${contact.number}` : contact.number
+        } catch (error) {
+            console.log(error)
+            return ""
+        }
     }
 
     async getMedia(message: Message) {
@@ -620,6 +630,30 @@ export class Washima {
     async clearMessages() {
         const deletion = await prisma.washimaMessage.deleteMany({ where: { washima_id: this.id } })
         return deletion.count
+    }
+
+    async search(value: string) {
+        // const matchingChats = this.chats.filter((chat) => chat.name)
+        const chatsFuse = new Fuse(this.chats, {
+            includeScore: true,
+            keys: ["name"],
+            threshold: 0.2, // Lower threshold for closer matches
+            ignoreLocation: true, // Ignores the location of the match which allows for more general matching
+            minMatchCharLength: 2, // Minimum character length of matches to consider
+        })
+        const chatsResults = chatsFuse.search(value).map((result) => result.item)
+
+        // const messagesFuse = new Fuse(this.chats, {
+        //     includeScore: true,
+        //     keys: ["name"],
+        //     threshold: 0.2, // Lower threshold for closer matches
+        //     ignoreLocation: true, // Ignores the location of the match which allows for more general matching
+        //     minMatchCharLength: 2, // Minimum character length of matches to consider
+        // })
+        // const messagesResults = messagesFuse.search(value).map((result) => result.item)
+
+        console.log({ value, chatsResults })
+        return chatsResults
     }
 
     toJSON() {
