@@ -54,6 +54,7 @@ app.use(
 )
 
 const server = http.createServer(app)
+server.setTimeout(1000 * 60 * 60)
 
 initializeIoServer(server)
 const io = getIoInstance()
