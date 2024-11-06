@@ -15,14 +15,15 @@ model Nagazap {
     appId       String      
     phoneId     String      
     bussinessId String      
-    stack       String      @db.Text 
-    blacklist   String      @db.Text 
+    stack       String      @db.LongText 
+    blacklist   String      @db.LongText 
     frequency   String      
     batchSize   Int         
     lastMessageTime String  
     paused      Boolean     
-    sentMessages    String  @db.Text
-    failedMessages    String  @db.Text
+    sentMessages    String  @db.LongText
+    failedMessages    String  @db.LongText
+    receivedMessages    NagazapMessage[]
 }
 
 model NagazapMessage {
@@ -30,7 +31,9 @@ model NagazapMessage {
     name        String
     from        String
     timestamp   String
-    text        String      @db.Text
+    text        String      @db.LongText
+    nagazap_id  Int
+    nagazap     Nagazap     @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }
 
 
