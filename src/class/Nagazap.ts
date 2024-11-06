@@ -7,10 +7,13 @@ import * as fs from "fs"
 import { getIoInstance } from "../io/socket"
 import { FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappBusiness/Logs"
 import { HandledError, HandledErrorCode } from "./HandledError"
+import { WithoutFunctions } from "./helpers"
+import { User } from "./User"
 
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id">
-export type NagazapPrisma = Prisma.NagazapGetPayload<{}>
+export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ user: true })
+export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
 interface BuildHeadersOptions {
     upload?: boolean
 }
@@ -35,12 +38,20 @@ const api = axios.create({
     // headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
 })
 
+export interface NagazapForm {
+    token: string
+    appId: string
+    phoneId: string
+    businessId: string
+    userId: string
+}
+
 export class Nagazap {
     id: number
     token: string
     appId: string
     phoneId: string
-    bussinessId: string
+    businessId: string
     lastUpdated: string
     stack: WhatsappForm[]
     blacklist: string[]
@@ -51,33 +62,69 @@ export class Nagazap {
     sentMessages: SentMessageLog[]
     failedMessages: FailedMessageLog[]
 
+    userId: string
+    user: User
+
     static async initialize() {
         await Nagazap.shouldBake()
         setInterval(() => Nagazap.shouldBake(), 1 * 5 * 1000)
     }
 
-    static async get() {
-        const data = await prisma.nagazap.findFirst()
-        if (!data) throw new HandledError({ code: 1, text: "no nagazap found" })
+    static async new(data: NagazapForm) {
+        const new_nagazap = await prisma.nagazap.create({
+            data: {
+                appId: data.appId,
+                businessId: data.businessId,
+                phoneId: data.phoneId,
+                token: data.token,
+                userId: data.userId,
 
-        const nagazap = new Nagazap(data)
+                batchSize: 20,
+                frequency: "60000",
+                paused: true,
+                lastUpdated: new Date().getTime().toString(),
+                lastMessageTime: "",
+
+                blacklist: "[]",
+                failedMessages: "[]",
+                sentMessages: "[]",
+                stack: "[]",
+            },
+            include: nagazap_include,
+        })
+
+        const nagazap = new Nagazap(new_nagazap)
         return nagazap
     }
 
+    static async getByUserId(user_id: string) {
+        const data = await prisma.nagazap.findMany({ where: { userId: user_id }, include: nagazap_include })
+        return data.map((item) => new Nagazap(item))
+    }
+
+    static async getAll() {
+        const data = await prisma.nagazap.findMany({ include: nagazap_include })
+        return data.map((item) => new Nagazap(item))
+    }
+
     static async shouldBake() {
-        try {
-            const nagazap = await Nagazap.get()
-            const lastTime = new Date(Number(nagazap.lastMessageTime))
-            const now = new Date()
-            if (now.getTime() >= lastTime.getTime() + Number(nagazap.frequency) && !!nagazap.stack.length && !nagazap.paused) {
-                nagazap.bake()
+        const nagazaps = await Nagazap.getAll()
+        nagazaps.forEach((nagazap) => {
+            try {
+                if (!nagazap.stack.length) return
+
+                const lastTime = new Date(Number(nagazap.lastMessageTime || 0))
+                const now = new Date()
+                if (now.getTime() >= lastTime.getTime() + Number(nagazap.frequency) && !!nagazap.stack.length && !nagazap.paused) {
+                    nagazap.bake()
+                }
+            } catch (error) {
+                if (error instanceof HandledError && error.code === HandledErrorCode.no_nagazap) {
+                } else {
+                    console.log(error)
+                }
             }
-        } catch (error) {
-            if (error instanceof HandledError && error.code === HandledErrorCode.no_nagazap) {
-            } else {
-                console.log(error)
-            }
-        }
+        })
     }
 
     constructor(data: NagazapPrisma) {
@@ -85,7 +132,7 @@ export class Nagazap {
         this.token = data.token
         this.appId = data.appId
         this.phoneId = data.phoneId
-        this.bussinessId = data.bussinessId
+        this.businessId = data.businessId
         this.lastUpdated = data.lastUpdated
         this.stack = JSON.parse(data.stack)
         this.blacklist = JSON.parse(data.blacklist)
@@ -95,6 +142,8 @@ export class Nagazap {
         this.paused = data.paused
         this.sentMessages = JSON.parse(data.sentMessages)
         this.failedMessages = JSON.parse(data.failedMessages)
+        this.userId = data.userId
+        this.user = new User(data.user)
     }
 
     async getMessages() {
@@ -115,7 +164,7 @@ export class Nagazap {
     }
 
     async getInfo() {
-        const response = await api.get(`/${this.bussinessId}?fields=id,name,phone_numbers`, {
+        const response = await api.get(`/${this.businessId}?fields=id,name,phone_numbers`, {
             headers: this.buildHeaders(),
         })
 
@@ -158,7 +207,7 @@ export class Nagazap {
     }
 
     async getTemplates() {
-        const response = await api.get(`/${this.bussinessId}?fields=id,name,message_templates`, {
+        const response = await api.get(`/${this.businessId}?fields=id,name,message_templates`, {
             headers: this.buildHeaders(),
         })
 

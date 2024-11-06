@@ -14,7 +14,7 @@ model Nagazap {
     lastUpdated String      
     appId       String      
     phoneId     String      
-    bussinessId String      
+    businessId String      
     stack       String      @db.LongText 
     blacklist   String      @db.LongText 
     frequency   String      
@@ -24,6 +24,9 @@ model Nagazap {
     sentMessages    String  @db.LongText
     failedMessages    String  @db.LongText
     receivedMessages    NagazapMessage[]
+
+    userId      String
+    user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model NagazapMessage {
@@ -103,4 +106,5 @@ model User {
     admin       Boolean         @default(false)
 
     washimas    Washima[]
+    nagazaps    Nagazap[]
 }
