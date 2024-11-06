@@ -52,7 +52,6 @@ router.get("/copy-chat", async (request: Request, response: Response) => {
     if (chat_id) {
         try {
             const messages = await WashimaMessage.getChatMessages(chat_id, 0, null)
-            console.log(messages)
             response.json(messages)
         } catch (error) {
             console.log(error)
