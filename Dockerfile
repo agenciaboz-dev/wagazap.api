@@ -24,6 +24,9 @@ RUN apt-get update && apt-get install gnupg wget -y && \
     sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
     apt-get update && \
     apt-get install google-chrome-stable -y --no-install-recommends && \
+
+    # install ffmepg
+    apt-get install ffmpeg -y && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy node modules and build from the build stage
