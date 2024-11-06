@@ -1,5 +1,6 @@
 import express, { Express, Request, Response } from "express"
 import { Washima } from "../../class/Washima/Washima"
+import { WashimaMessage } from "../../class/Washima/WashimaMessage"
 const router = express.Router()
 
 router.get("/disk-usage", async (request: Request, response: Response) => {
@@ -42,6 +43,23 @@ router.delete("/messages", async (request: Request, response: Response) => {
     } catch (error) {
         console.log(error)
         response.status(500).send(error)
+    }
+})
+
+router.get("/copy-chat", async (request: Request, response: Response) => {
+    const chat_id = request.query.chat_id as string | undefined
+
+    if (chat_id) {
+        try {
+            const messages = await WashimaMessage.getChatMessages(chat_id, 0, null)
+            console.log(messages)
+            response.json(messages)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("chat_id param is required")
     }
 })
 

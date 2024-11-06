@@ -41,9 +41,13 @@ export class WashimaMessage {
     type: MessageType
     ack?: MessageAck | null
 
-    static async getChatMessages(chat_id: string, offset: number = 0) {
-        console.log(offset)
-        const data = await prisma.washimaMessage.findMany({ where: { chat_id }, orderBy: { timestamp: "desc" }, skip: offset, take: 10 })
+    static async getChatMessages(chat_id: string, offset: number = 0, take?: number | null) {
+        const data = await prisma.washimaMessage.findMany({
+            where: { chat_id },
+            orderBy: { timestamp: "desc" },
+            skip: offset,
+            take: take === null ? undefined : take || 10,
+        })
         return data.map((item) => new WashimaMessage(item))
     }
 
