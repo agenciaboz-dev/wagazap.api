@@ -659,16 +659,18 @@ export class Washima {
         })
         const chatsResults = chatsFuse.search(value).map((result) => result.item)
 
-        // const messagesFuse = new Fuse(this.chats, {
-        //     includeScore: true,
-        //     keys: ["name"],
-        //     threshold: 0.2, // Lower threshold for closer matches
-        //     ignoreLocation: true, // Ignores the location of the match which allows for more general matching
-        //     minMatchCharLength: 2, // Minimum character length of matches to consider
-        // })
-        // const messagesResults = messagesFuse.search(value).map((result) => result.item)
+        const allMessagesResults = await WashimaMessage.search(value)
+        const messagesResults = allMessagesResults.filter((message) => this.chats.find((chat) => chat.id._serialized === message.chat_id))
 
-        console.log({ value, chatsResults })
+        messagesResults.forEach((message) => {
+            const chat = this.chats.find((chat) => chat.id._serialized === message.chat_id)
+            if (chat) {
+                // @ts-ignore
+                chatsResults.push({ ...chat, lastMessage: message })
+            }
+        })
+        chatsResults.sort((a, b) => b.lastMessage.timestamp - a.lastMessage.timestamp)
+
         return chatsResults
     }
 

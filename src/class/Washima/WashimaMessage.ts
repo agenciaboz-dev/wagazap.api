@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client"
 import { prisma } from "../../prisma"
 import WAWebJS from "whatsapp-web.js"
 import { WashimaMessageId } from "./Washima"
+import Fuse from "fuse.js"
 
 export type MessageType = "ptt" | "video" | "image" | "text" | "revoked" | "sticker" | "audio" | "chat" | "document" | "sticker"
 
@@ -44,6 +45,27 @@ export class WashimaMessage {
         console.log(offset)
         const data = await prisma.washimaMessage.findMany({ where: { chat_id }, orderBy: { timestamp: "desc" }, skip: offset, take: 10 })
         return data.map((item) => new WashimaMessage(item))
+    }
+
+    static async getWashimaMessages(washima_id: string, body?: any) {
+        const data = await prisma.washimaMessage.findMany({ where: { washima_id, body }, orderBy: { timestamp: "desc" } })
+        return data.map((item) => new WashimaMessage(item))
+    }
+
+    static async search(value: string) {
+        const data = await prisma.washimaMessage.findMany({ orderBy: { timestamp: "desc" } })
+        const all_messages = data.map((item) => new WashimaMessage(item))
+        const messagesFuse = new Fuse(all_messages, {
+            includeScore: true,
+            keys: ["body"],
+            threshold: 0.2, // Lower threshold for closer matches
+            ignoreLocation: true, // Ignores the location of the match which allows for more general matching
+            minMatchCharLength: 2, // Minimum character length of matches to consider
+        })
+
+        const messages_result = messagesFuse.search(value).map((item) => item.item)
+
+        return messages_result
     }
 
     static async new(data: WashimaMessageForm) {
