@@ -173,6 +173,8 @@ export class Washima {
         if (washima) {
             await washima.client.destroy()
             Washima.washimas = Washima.washimas.filter((item) => item.id !== washima_id)
+            await deleteDirectory(`static/washima/auth/whatsapp.auth.${washima.id}`)
+            await deleteDirectory(`static/washima/${washima.id}`)
             return washima
         }
     }
