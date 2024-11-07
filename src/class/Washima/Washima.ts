@@ -63,6 +63,7 @@ export class WashimaMedia {
     filename: string
     data: string
     mimetype: string
+    size: string
 
     static async new(data: WashimaMediaPrisma) {
         console.log("creating new cache")
@@ -89,6 +90,7 @@ export class WashimaMedia {
         this.filename = data.filename
         this.mimetype = data.mimetype
         this.data = data.data
+        this.size = data.size
     }
 }
 
