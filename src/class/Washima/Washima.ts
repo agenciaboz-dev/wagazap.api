@@ -67,8 +67,6 @@ export class WashimaMedia {
     size: string
 
     static async new(data: WashimaMediaPrisma) {
-        console.log("creating new cache")
-
         try {
             const media_prisma = await prisma.washimaMedia.create({
                 data: {
@@ -539,7 +537,6 @@ export class Washima {
     }
 
     async cacheProfilePic(target_id: string, target: "chat" | "message" = "chat") {
-        console.log("caching profile pic")
         let contact: WAWebJS.Contact
         try {
             if (target === "chat") {
@@ -581,7 +578,6 @@ export class Washima {
         const media = await WashimaMedia.get(id)
 
         if (media) {
-            console.log("found cached")
             return media
         }
 
@@ -607,7 +603,6 @@ export class Washima {
     async getCachedProfilePicture(target_id: string, target?: "chat" | "message") {
         const cached = await prisma.washimaProfilePic.findUnique({ where: { chat_id: target_id } })
         if (cached && Number(cached.last_updated) - 1000 * 60 * 60 * 24 <= new Date().getTime()) {
-            console.log("getting cached profile pic")
             return new WashimaProfilePic(cached)
         }
 
