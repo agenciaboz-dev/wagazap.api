@@ -70,7 +70,14 @@ export class WashimaMedia {
 
         try {
             const media_prisma = await prisma.washimaMedia.create({
-                data: { data: data.data, filename: data.filename, message_id: data.message_id, mimetype: data.mimetype, washima_id: data.washima_id },
+                data: {
+                    data: data.data,
+                    filename: data.filename,
+                    message_id: data.message_id,
+                    mimetype: data.mimetype,
+                    washima_id: data.washima_id,
+                    size: data.size,
+                },
             })
             return new WashimaMedia(media_prisma)
         } catch (error) {
@@ -582,7 +589,7 @@ export class Washima {
             const size = (Buffer.byteLength(first_time_media.data, "utf8") / (1024 * 1024)).toFixed(2)
             const new_cached = await WashimaMedia.new({
                 data: first_time_media.data,
-                filename: (first_time_media.filename || id) + "." + first_time_media.mimetype.split("/")[1].split(";")[0],
+                filename: first_time_media.filename || id + "." + first_time_media.mimetype.split("/")[1].split(";")[0],
                 message_id: id,
                 mimetype: first_time_media.mimetype,
                 washima_id: this.id,
