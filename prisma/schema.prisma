@@ -57,6 +57,7 @@ model WashimaMedia {
     data        String      @db.LongText
     mimetype    String
     washima_id  String
+    size        String      @default("indisponível")
 }
 
 model WashimaProfilePic {

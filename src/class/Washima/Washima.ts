@@ -66,8 +66,7 @@ export class WashimaMedia {
 
     static async new(data: WashimaMediaPrisma) {
         console.log("creating new cache")
-        const size = (Buffer.byteLength(data.data, "utf8") / (1024 * 1024)).toFixed(2)
-        console.log("Data size:", size, "Mb")
+
         try {
             const media_prisma = await prisma.washimaMedia.create({
                 data: { data: data.data, filename: data.filename, message_id: data.message_id, mimetype: data.mimetype, washima_id: data.washima_id },
@@ -568,12 +567,14 @@ export class Washima {
 
         try {
             const first_time_media = await message.downloadMedia()
+            const size = (Buffer.byteLength(first_time_media.data, "utf8") / (1024 * 1024)).toFixed(2)
             const new_cached = await WashimaMedia.new({
                 data: first_time_media.data,
                 filename: (first_time_media.filename || id) + "." + first_time_media.mimetype.split("/")[1].split(";")[0],
                 message_id: id,
                 mimetype: first_time_media.mimetype,
                 washima_id: this.id,
+                size,
             })
             return new_cached
         } catch (error) {
