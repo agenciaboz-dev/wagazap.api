@@ -85,6 +85,16 @@ export class WashimaMedia {
         return new WashimaMedia(data)
     }
 
+    static async getMetadata(message_id: string) {
+        const data = await prisma.washimaMedia.findUnique({
+            where: { message_id },
+            select: { filename: true, mimetype: true, size: true, message_id: true, washima_id: true },
+        })
+        if (!data) return
+
+        return new WashimaMedia({ ...data, data: "" })
+    }
+
     constructor(data: WashimaMediaPrisma) {
         this.message_id = data.message_id
         this.filename = data.filename
@@ -516,8 +526,8 @@ export class Washima {
     }
 
     async getMediaMeta(message_id: string) {
-        const media = await WashimaMedia.get(message_id)
-        return { mimetype: media?.mimetype, filename: media?.filename, message_id }
+        const mediaMeta = await WashimaMedia.getMetadata(message_id)
+        return mediaMeta
     }
 
     async cacheProfilePic(target_id: string, target: "chat" | "message" = "chat") {
