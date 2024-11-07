@@ -127,7 +127,7 @@ export class Washima {
     }
 
     static async list() {
-        const data = await prisma.washima.findMany({})
+        const data = await prisma.washima.findMany({ orderBy: { created_at: "asc" } })
         const list = data.map((item) => new Washima(item))
         return list
     }
