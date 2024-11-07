@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client"
-import WAWebJS, { Chat, Client, LocalAuth, Message, MessageMedia } from "whatsapp-web.js"
+import WAWebJS, { Client, LocalAuth, Message, MessageMedia } from "whatsapp-web.js"
 import { prisma } from "../../prisma"
 import { FileUpload, WithoutFunctions } from "../helpers"
 import { uid } from "uid"
@@ -8,7 +8,6 @@ import { Socket } from "socket.io"
 import axios from "axios"
 import { saveFile } from "../../tools/saveFile"
 import { convertFile } from "../../tools/convertMedia"
-import { writeFileSync } from "fs"
 import { WashimaMessage } from "./WashimaMessage"
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library"
 import { WashimaGroupUpdate, WashimaGroupUpdateForm } from "./WashimaGroupUpdate"
@@ -16,6 +15,8 @@ import { getDirectorySize } from "../../tools/getDirectorySize"
 import { deleteDirectory } from "../../tools/deleteDirectory"
 import Fuse from "fuse.js"
 import { User } from "../User"
+import numeral from "numeral"
+// import numeral from 'numeral'
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
@@ -586,14 +587,15 @@ export class Washima {
 
         try {
             const first_time_media = await message.downloadMedia()
-            const size = (Buffer.byteLength(first_time_media.data, "utf8") / (1024 * 1024)).toFixed(2)
+            const size = Buffer.byteLength(first_time_media.data, "utf8")
+            const formatted_size = numeral(size).format("0.00 b")
             const new_cached = await WashimaMedia.new({
                 data: first_time_media.data,
                 filename: first_time_media.filename || id + "." + first_time_media.mimetype.split("/")[1].split(";")[0],
                 message_id: id,
                 mimetype: first_time_media.mimetype,
                 washima_id: this.id,
-                size,
+                size: formatted_size,
             })
             return new_cached
         } catch (error) {
