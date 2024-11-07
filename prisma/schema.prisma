@@ -81,6 +81,8 @@ model WashimaMessage {
     to          String
     type        String
     ack         Int?
+    edited      Boolean         @default(false)
+    deleted     Boolean         @default(false)
 
     @@fulltext([body])
 }

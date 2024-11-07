@@ -40,6 +40,8 @@ export class WashimaMessage {
     to: string
     type: MessageType
     ack?: MessageAck | null
+    edited: boolean
+    deleted: boolean
 
     static async getChatMessages(chat_id: string, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -101,8 +103,7 @@ export class WashimaMessage {
         return new WashimaMessage(saved)
     }
 
-    static async update(message: WAWebJS.Message) {
-        console.log(message.author)
+    static async update(message: WAWebJS.Message, options?: { edited?: boolean; deleted?: boolean }) {
         try {
             const data = await prisma.washimaMessage.update({
                 where: { sid: message.id._serialized },
@@ -112,10 +113,34 @@ export class WashimaMessage {
                     timestamp: JSON.stringify(message.timestamp),
                     type: message.type,
                     author: message.author,
+                    edited: options?.edited,
+                    deleted: options?.deleted,
                 },
             })
 
             return new WashimaMessage(data)
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    static async revoke(message: WAWebJS.Message) {
+        try {
+            const current_message = await prisma.washimaMessage.findFirst({
+                where: { timestamp: message.timestamp.toString(), from: message.from, to: message.to },
+            })
+            if (current_message) {
+                const data = await prisma.washimaMessage.update({
+                    where: { sid: current_message.sid },
+                    data: {
+                        deleted: true,
+                    },
+                })
+
+                return new WashimaMessage(data)
+            } else {
+                throw "message not found"
+            }
         } catch (error) {
             console.log(error)
         }
@@ -136,5 +161,7 @@ export class WashimaMessage {
         this.to = data.to
         this.type = data.type as MessageType
         this.ack = data.ack
+        this.edited = data.edited
+        this.deleted = data.deleted
     }
 }

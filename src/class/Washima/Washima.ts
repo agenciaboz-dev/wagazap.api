@@ -310,6 +310,38 @@ export class Washima {
                 io.emit("washima:update", this)
             })
 
+            this.client.on("message_revoke_everyone", async (message, revoked) => {
+                const chat = await message.getChat()
+                try {
+                    const updated = await WashimaMessage.revoke(message)
+                    io.emit("washima:message:update", updated, chat.id._serialized)
+                    io.emit(`washima:${this.id}:message`, { chat, message: updated })
+                } catch (error) {
+                    console.log(error)
+                }
+                const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+
+                io.emit("washima:update", this)
+            })
+
+            this.client.on("message_edit", async (message, new_body, previous_body) => {
+                if (new_body === previous_body) return
+
+                const chat = await message.getChat()
+                try {
+                    const updated = await WashimaMessage.update(message, { edited: true })
+                    io.emit("washima:message:update", updated, chat.id._serialized)
+                    io.emit(`washima:${this.id}:message`, { chat, message: updated })
+                } catch (error) {
+                    console.log(error)
+                }
+                const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+
+                io.emit("washima:update", this)
+            })
+
             this.client.on("message_create", async (message) => {
                 try {
                     const io = getIoInstance()
