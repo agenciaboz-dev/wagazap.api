@@ -660,7 +660,7 @@ export class Washima {
         console.log("finished")
     }
 
-    async getTableUsage(table: string) {
+    async getTableUsage(table: string, megabyte?: boolean) {
         interface AvgRowLength {
             AVG_ROW_LENGTH: number
         }
@@ -670,19 +670,19 @@ export class Washima {
         WHERE TABLE_NAME = ${table}
     `
         const { AVG_ROW_LENGTH } = avgRowData
-        const avgRowLengthInMB = Number(AVG_ROW_LENGTH) / (1024 * 1024)
+        const avgRowLengthInMB = Number(AVG_ROW_LENGTH) / (megabyte ? 1024 * 1024 : 1)
 
         return avgRowLengthInMB
     }
 
-    async getDiskUsage() {
-        const message_metrics = await this.getTableUsage("WashimaMessage")
+    async getDiskUsage(megabyte = true) {
+        const message_metrics = await this.getTableUsage("WashimaMessage", megabyte)
         const messages_count = await prisma.washimaMessage.count({ where: { washima_id: this.id } })
-        const media_metrics = await this.getTableUsage("WashimaMedia")
+        const media_metrics = await this.getTableUsage("WashimaMedia", megabyte)
         const media_count = await prisma.washimaMedia.count({ where: { washima_id: this.id } })
-        const profile_pic_metrics = await getDirectorySize(`static/washima/${this.id}/profilePics`)
-        console.log({ message_metrics, media_metrics, profile_pic_metrics })
+        const profile_pic_metrics = (await getDirectorySize(`static/washima/${this.id}/profilePics`)) / (megabyte ? 1024 * 1024 : 1)
         this.diskMetrics = { media: media_metrics * media_count + profile_pic_metrics, messages: message_metrics * messages_count }
+        console.log(this.diskMetrics)
 
         return this.diskMetrics
     }

@@ -3,6 +3,8 @@ import { LoginForm } from "../types/shared/LoginForm"
 import { prisma } from "../prisma"
 import { uid } from "uid"
 import { WithoutFunctions } from "./helpers"
+import { Washima } from "./Washima/Washima"
+import numeral from "numeral"
 
 export type UserPrisma = Prisma.UserGetPayload<{}>
 
@@ -80,5 +82,39 @@ export class User {
         })
 
         this.load(updated)
+    }
+
+    getWashimas() {
+        const washimas = Washima.washimas.filter((washima) => washima.users.find((user) => user.id === this.id))
+        return washimas
+    }
+
+    async getWashimasCount() {
+        const washimas = await prisma.washima.count({ where: { users: { some: { id: this.id } } } })
+        return washimas
+    }
+
+    async getUnrepliedCount() {
+        const washimas = this.getWashimas()
+        const count = washimas.reduce((total, washima) => {
+            const chats = washima.chats.filter((chat) => chat.unreadCount > 0)
+            return total + chats.length
+        }, 0)
+
+        return count
+    }
+
+    async getTotalStorage() {
+        const washimas = this.getWashimas()
+        const total_size = (
+            await Promise.all(
+                washimas.map(async (washima) => {
+                    const metrics = await washima.getDiskUsage(false)
+                    return metrics.media + metrics.messages
+                })
+            )
+        ).reduce((total, current) => total + current, 0)
+
+        return numeral(total_size).format("0.00 b")
     }
 }

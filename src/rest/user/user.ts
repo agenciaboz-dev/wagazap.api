@@ -1,10 +1,12 @@
 import express, { Express, Request, Response } from "express"
 import { User, UserForm } from "../../class/User"
 import login from "./login"
+import stats from "./stats"
 
 const router = express.Router()
 
 router.use("/login", login)
+router.use("/stats", stats)
 
 router.post("/", async (request: Request, response: Response) => {
     const data = request.body as UserForm

@@ -35,6 +35,6 @@ export async function getDirectorySize(dirPath: string): Promise<number> {
     }
 
     const totalSize = await calculateSize(fullPath)
-    const totalSizeInMB = totalSize / (1024 * 1024) // Convert bytes to megabytes
+    const totalSizeInMB = totalSize // Convert bytes to megabytes
     return totalSizeInMB
 }
