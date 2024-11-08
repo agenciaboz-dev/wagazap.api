@@ -714,6 +714,8 @@ export class Washima {
         const messagesResults = allMessagesResults.filter((message) => this.chats.find((chat) => chat.id._serialized === message.chat_id))
 
         messagesResults.forEach((message) => {
+            if (message.to !== this.info.wid._serialized && message.from !== this.info.wid._serialized) return
+
             const chat = this.chats.find((chat) => chat.id._serialized === message.chat_id)
             if (chat) {
                 // @ts-ignore
