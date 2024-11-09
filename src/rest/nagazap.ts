@@ -126,20 +126,19 @@ router.get("/clearOven", async (request: Request, response: Response) => {
     }
 })
 
-// router.get("/templates", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         const templates = await nagazap.getTemplates()
-//         response.json(templates)
-//     } catch (error) {
-//         response.status(500).send(error)
-//         if (error instanceof AxiosError) {
-//             console.log(error.response?.data)
-//         } else {
-//             console.log(error)
-//         }
-//     }
-// })
+router.delete("/blacklist", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    const data = request.body as { number: string }
+
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        await nagazap.removeFromBlacklist(data.number)
+        response.json(nagazap)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
 
 router.patch("/token", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
@@ -158,14 +157,30 @@ router.patch("/token", async (request: Request, response: Response) => {
     }
 })
 
-// router.get("/messages", async (request: Request, response: Response) => {
+router.get("/messages", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const messages = await nagazap.getMessages()
+        response.json(messages)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+// router.get("/templates", async (request: Request, response: Response) => {
 //     try {
 //         const nagazap = await Nagazap.get()
-//         const messages = await nagazap.getMessages()
-//         response.json(messages)
+//         const templates = await nagazap.getTemplates()
+//         response.json(templates)
 //     } catch (error) {
-//         console.log(error)
 //         response.status(500).send(error)
+//         if (error instanceof AxiosError) {
+//             console.log(error.response?.data)
+//         } else {
+//             console.log(error)
+//         }
 //     }
 // })
 
@@ -286,21 +301,6 @@ router.patch("/token", async (request: Request, response: Response) => {
 //         if (error instanceof AxiosError) {
 //             console.log(error.response?.data)
 //         }
-//         response.status(500).send(error)
-//     }
-// })
-
-
-
-// router.delete("/blacklist", async (request: Request, response: Response) => {
-//     const data = request.body as { number: string }
-
-//     try {
-//         const nagazap = await Nagazap.get()
-//         await nagazap.removeFromBlacklist(data.number)
-//         response.json(nagazap)
-//     } catch (error) {
-//         console.log(error)
 //         response.status(500).send(error)
 //     }
 // })
