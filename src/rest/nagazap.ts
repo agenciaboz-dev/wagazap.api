@@ -26,7 +26,8 @@ router.get("/", async (request: Request, response: Response) => {
     console.log(user_id)
     if (user_id) {
         if (nagazap_id) {
-            // a single nagazap
+            const nagazap = await Nagazap.getById(Number(nagazap_id))
+            response.json(nagazap)
         } else {
             try {
                 const nagazaps = await Nagazap.getByUserId(user_id)
@@ -55,6 +56,20 @@ router.post("/", async (request: Request, response: Response) => {
 
 router.use(requireNagazapId) // require the "nagazap_id" param for all routes bellow
 
+router.patch("/", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    const data = request.body as { batchSize?: number; frequency?: string }
+
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        await nagazap.updateOvenSettings(data)
+        response.json(nagazap)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 router.get("/info", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
@@ -72,6 +87,42 @@ router.get("/info", async (request: Request, response: Response) => {
         } else {
             console.log(error)
         }
+    }
+})
+
+router.get("/pause", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        await nagazap.pause()
+        response.json(nagazap)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.get("/start", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        await nagazap.start()
+        response.json(nagazap)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.get("/clearOven", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        await nagazap.clearOven()
+        response.json(nagazap)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
     }
 })
 
@@ -239,18 +290,7 @@ router.patch("/token", async (request: Request, response: Response) => {
 //     }
 // })
 
-// router.patch("/", async (request: Request, response: Response) => {
-//     const data = request.body as { batchSize?: number; frequency?: string }
 
-//     try {
-//         const nagazap = await Nagazap.get()
-//         await nagazap.updateOvenSettings(data)
-//         response.json(nagazap)
-//     } catch (error) {
-//         console.log(error)
-//         response.status(500).send(error)
-//     }
-// })
 
 // router.delete("/blacklist", async (request: Request, response: Response) => {
 //     const data = request.body as { number: string }
@@ -265,37 +305,6 @@ router.patch("/token", async (request: Request, response: Response) => {
 //     }
 // })
 
-// router.get("/pause", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         await nagazap.pause()
-//         response.json(nagazap)
-//     } catch (error) {
-//         console.log(error)
-//         response.status(500).send(error)
-//     }
-// })
 
-// router.get("/start", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         await nagazap.start()
-//         response.json(nagazap)
-//     } catch (error) {
-//         console.log(error)
-//         response.status(500).send(error)
-//     }
-// })
-
-// router.get("/clearOven", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         await nagazap.clearOven()
-//         response.json(nagazap)
-//     } catch (error) {
-//         console.log(error)
-//         response.status(500).send(error)
-//     }
-// })
 
 export default router
