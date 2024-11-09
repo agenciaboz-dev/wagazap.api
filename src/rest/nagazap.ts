@@ -169,20 +169,55 @@ router.get("/messages", async (request: Request, response: Response) => {
     }
 })
 
-// router.get("/templates", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         const templates = await nagazap.getTemplates()
-//         response.json(templates)
-//     } catch (error) {
-//         response.status(500).send(error)
-//         if (error instanceof AxiosError) {
-//             console.log(error.response?.data)
-//         } else {
-//             console.log(error)
-//         }
-//     }
-// })
+router.get("/templates", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const templates = await nagazap.getTemplates()
+        response.json(templates)
+    } catch (error) {
+        response.status(500).send(error)
+        if (error instanceof AxiosError) {
+            console.log(error.response?.data)
+        } else {
+            console.log(error)
+        }
+    }
+})
+
+router.post("/oven", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        let image_id = ""
+
+        const data = JSON.parse(request.body.data) as OvenForm
+        console.log(`quantidade de contatos: ${data.to.length}`)
+        if (!data.template) {
+            response.status(400).send("template is required")
+            return
+        }
+
+        if (request.files) {
+            const file = request.files.file as UploadedFile
+            file.name = file.name.replace(/[\s\/\\?%*:|"<>]+/g, "-").trim()
+            const uploaded = saveFile("nagazap/image", { name: file.name, file: file.data }, async () => {
+                image_id = await nagazap.uploadMedia(file, uploaded.filepath)
+                await nagazap.prepareBatch(data, image_id)
+                response.send("teste")
+            })
+        } else {
+            await nagazap.prepareBatch(data, image_id)
+            response.send("teste")
+        }
+    } catch (error) {
+        console.log(error)
+        if (error instanceof AxiosError) {
+            console.log(error.response?.data)
+        }
+        response.status(500).send(error)
+    }
+})
 
 // // router.post("/", async (request: Request, response: Response) => {
 // //     const data = request.body as WhatsappForm
@@ -272,38 +307,7 @@ router.get("/messages", async (request: Request, response: Response) => {
 //     }
 // })
 
-// router.post("/oven", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         let image_id = ""
 
-//         const data = JSON.parse(request.body.data) as OvenForm
-//         console.log(`quantidade de contatos: ${data.to.length}`)
-//         if (!data.template) {
-//             response.status(400).send("template is required")
-//             return
-//         }
-
-//         if (request.files) {
-//             const file = request.files.file as UploadedFile
-//             file.name = file.name.replace(/[\s\/\\?%*:|"<>]+/g, "-").trim()
-//             const uploaded = saveFile("nagazap/image", { name: file.name, file: file.data }, async () => {
-//                 image_id = await nagazap.uploadMedia(file, uploaded.filepath)
-//                 await nagazap.prepareBatch(data, image_id)
-//                 response.send("teste")
-//             })
-//         } else {
-//             await nagazap.prepareBatch(data, image_id)
-//             response.send("teste")
-//         }
-//     } catch (error) {
-//         console.log(error)
-//         if (error instanceof AxiosError) {
-//             console.log(error.response?.data)
-//         }
-//         response.status(500).send(error)
-//     }
-// })
 
 
 
