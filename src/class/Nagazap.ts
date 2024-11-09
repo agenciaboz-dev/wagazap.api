@@ -84,7 +84,7 @@ export class Nagazap {
                 userId: data.userId,
 
                 batchSize: 20,
-                frequency: "60000",
+                frequency: "30",
                 paused: true,
                 lastUpdated: new Date().getTime().toString(),
                 lastMessageTime: "",
@@ -139,7 +139,7 @@ export class Nagazap {
 
                 const lastTime = new Date(Number(nagazap.lastMessageTime || 0))
                 const now = new Date()
-                if (now.getTime() >= lastTime.getTime() + Number(nagazap.frequency) && !!nagazap.stack.length && !nagazap.paused) {
+                if (now.getTime() >= lastTime.getTime() + Number(nagazap.frequency) * 1000 * 60 && !!nagazap.stack.length && !nagazap.paused) {
                     nagazap.bake()
                 }
             } catch (error) {
