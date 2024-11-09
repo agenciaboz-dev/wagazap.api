@@ -2,7 +2,7 @@ export interface MessageWebhook {
     object: "whatsapp_business_account"
     entry: [
         {
-            id: string
+            id: string // businessId
             changes: [
                 {
                     value: {

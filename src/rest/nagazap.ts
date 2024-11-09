@@ -236,76 +236,77 @@ router.post("/oven", async (request: Request, response: Response) => {
 // //     }
 // // })
 
-// router.get("/messages_webhook", async (request: Request, response: Response) => {
-//     const mode = request.query["hub.mode"]
+router.get("/messages_webhook", async (request: Request, response: Response) => {
+    const mode = request.query["hub.mode"]
 
-//     if (mode == "subscribe") {
-//         try {
-//             const challenge = request.query["hub.challenge"]
+    if (mode == "subscribe") {
+        try {
+            const challenge = request.query["hub.challenge"]
 
-//             response.status(200).send(challenge)
-//         } catch (error) {
-//             console.log(error)
-//             response.status(500).send(error)
-//         }
-//     } else {
-//         response.status(400).send("hub.mode should be subscribe")
-//     }
-// })
+            response.status(200).send(challenge)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("hub.mode should be subscribe")
+    }
+})
 
-// router.post("/messages_webhook", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         const data = request.body as MessageWebhook
-//         data.entry?.forEach(async (entry) => {
-//             entry.changes?.forEach(async (change) => {
-//                 if (change.field !== "messages") return
-//                 change.value.messages?.forEach(async (message) => {
-//                     console.log(message)
-//                     // nagazap.saveMessage({
-//                     //     from: message.from.slice(2),
-//                     //     text: message.text?.body || message.button?.text || "**ERRO**",
-//                     //     timestamp: message.timestamp,
-//                     //     name: change.value.contacts[0].profile?.name || "",
-//                     // })
-//                 })
-//             })
-//         })
-//         response.status(200).send()
-//     } catch (error) {
-//         console.log(error)
-//         response.status(500).send(error)
-//     }
-// })
+router.post("/messages_webhook", async (request: Request, response: Response) => {
+    try {
+        const data = request.body as MessageWebhook
+        const businessId = data.entry[0].id
+        const nagazap = await Nagazap.getByBusinessId(businessId)
+        data.entry?.forEach(async (entry) => {
+            entry.changes?.forEach(async (change) => {
+                if (change.field !== "messages") return
+                change.value.messages?.forEach(async (message) => {
+                    console.log(message)
+                    nagazap.saveMessage({
+                        from: message.from.slice(2),
+                        text: message.text?.body || message.button?.text || "**MENSAGEM DE MIDIA**",
+                        timestamp: message.timestamp,
+                        name: change.value.contacts[0].profile?.name || "",
+                    })
+                })
+            })
+        })
+        response.status(200).send()
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
 
-// router.get("/media_webhook", async (request: Request, response: Response) => {
-//     const mode = request.query["hub.mode"]
+router.get("/media_webhook", async (request: Request, response: Response) => {
+    const mode = request.query["hub.mode"]
 
-//     if (mode == "subscribe") {
-//         try {
-//             const challenge = request.query["hub.challenge"]
+    if (mode == "subscribe") {
+        try {
+            const challenge = request.query["hub.challenge"]
 
-//             response.status(200).send(challenge)
-//         } catch (error) {
-//             console.log(error)
-//             response.status(500).send(error)
-//         }
-//     } else {
-//         response.status(400).send("hub.mode should be subscribe")
-//     }
-// })
+            response.status(200).send(challenge)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("hub.mode should be subscribe")
+    }
+})
 
-// router.post("/media_webhook", async (request: Request, response: Response) => {
-//     const data = request.body
+router.post("/media_webhook", async (request: Request, response: Response) => {
+    const data = request.body
 
-//     try {
-//         console.log(JSON.stringify(data, null, 4))
-//         response.status(200).send()
-//     } catch (error) {
-//         console.log(error)
-//         response.status(500).send(error)
-//     }
-// })
+    try {
+        console.log(JSON.stringify(data, null, 4))
+        response.status(200).send()
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
 
 
 

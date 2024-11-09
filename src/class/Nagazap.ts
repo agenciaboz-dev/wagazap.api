@@ -12,7 +12,7 @@ import { User } from "./User"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
 
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
-export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id">
+export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
 export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ user: true })
 export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
 interface BuildHeadersOptions {
@@ -109,6 +109,15 @@ export class Nagazap {
                 code: HandledErrorCode.nagazap_no_info,
                 text: "Não foi possível realizar o cadastrado, verifique os dados enviados.",
             })
+        }
+    }
+
+    static async getByBusinessId(business_id: string) {
+        const data = await prisma.nagazap.findFirst({ where: { businessId: business_id }, include: nagazap_include })
+        if (data) {
+            return new Nagazap(data)
+        } else {
+            throw new HandledError({ code: HandledErrorCode.nagazap_not_found, text: "Nagazap não encontrado" })
         }
     }
 
@@ -219,6 +228,7 @@ export class Nagazap {
         const prisma_message = await prisma.nagazapMessage.create({
             data: {
                 ...data,
+                nagazap_id: this.id,
                 timestamp: (Number(data.timestamp) * 1000).toString(),
             },
         })
