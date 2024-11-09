@@ -6,6 +6,8 @@ import { MessageWebhook } from "../types/shared/Meta/WhatsappBusiness/MessageWeb
 import { Nagazap, NagazapForm } from "../class/Nagazap"
 import { UploadedFile } from "express-fileupload"
 import { saveFile } from "../tools/saveFile"
+import { HandledError } from "../class/HandledError"
+import { requireNagazapId } from "../middlewares/requireNagazapId"
 
 const router = express.Router()
 
@@ -47,24 +49,31 @@ router.post("/", async (request: Request, response: Response) => {
         response.json(nagazap)
     } catch (error) {
         console.log(error)
-        response.status(500).send(error)
+        response.status(error instanceof HandledError ? 400 : 500).send(error)
     }
 })
 
-// router.get("/info", async (request: Request, response: Response) => {
-//     try {
-//         const nagazap = await Nagazap.get()
-//         const info = await nagazap.getInfo()
-//         response.json(info)
-//     } catch (error) {
-//         response.status(500).send(error)
-//         if (error instanceof AxiosError) {
-//             console.log(error.response?.data)
-//         } else {
-//             console.log(error)
-//         }
-//     }
-// })
+router.use(requireNagazapId) // require the "nagazap_id" param for all routes bellow
+
+router.get("/info", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    try {
+        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const info = await nagazap.getInfo()
+        if (info) {
+            return response.json(info)
+        } else {
+            response.status(400).send("Não foi possível obter as informações, verifique seu Token")
+        }
+    } catch (error) {
+        response.status(500).send(error)
+        if (error instanceof AxiosError) {
+            console.log(error.response?.data)
+        } else {
+            console.log(error)
+        }
+    }
+})
 
 // router.get("/templates", async (request: Request, response: Response) => {
 //     try {
@@ -81,23 +90,22 @@ router.post("/", async (request: Request, response: Response) => {
 //     }
 // })
 
-
-// router.patch("/token", async (request: Request, response: Response) => {
-//     const data = request.body as { token: string }
-//     console.log(data)
-//     if (data.token) {
-//         try {
-//             const nagazap = await Nagazap.get()
-//             await nagazap.updateToken(data.token)
-//             response.json(nagazap)
-//         } catch (error) {
-//             console.log(error)
-//             response.status(500).send(error)
-//         }
-//     } else {
-//         response.status(400).send("missing token attribute")
-//     }
-// })
+router.patch("/token", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+    const data = request.body as { token: string }
+    if (data.token) {
+        try {
+            const nagazap = await Nagazap.getById(Number(nagazap_id))
+            await nagazap.updateToken(data.token)
+            response.json(nagazap)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("missing token attribute")
+    }
+})
 
 // router.get("/messages", async (request: Request, response: Response) => {
 //     try {

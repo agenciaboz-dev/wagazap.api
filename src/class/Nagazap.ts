@@ -9,6 +9,7 @@ import { FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappB
 import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
 import { User } from "./User"
+import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
 
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id">
@@ -62,6 +63,9 @@ export class Nagazap {
     sentMessages: SentMessageLog[]
     failedMessages: FailedMessageLog[]
 
+    displayName: string | null
+    displayPhone: string | null
+
     userId: string
     user: User
 
@@ -94,7 +98,27 @@ export class Nagazap {
         })
 
         const nagazap = new Nagazap(new_nagazap)
-        return nagazap
+        const info = await nagazap.getInfo()
+        if (!!info?.phone_numbers.data.length) {
+            const phone = info.phone_numbers.data[0]
+            await nagazap.update({ displayName: phone.verified_name, displayPhone: phone.display_phone_number })
+            return nagazap
+        } else {
+            await prisma.nagazap.delete({ where: { id: nagazap.id } })
+            throw new HandledError({
+                code: HandledErrorCode.nagazap_no_info,
+                text: "Não foi possível realizar o cadastrado, verifique os dados enviados.",
+            })
+        }
+    }
+
+    static async getById(id: number) {
+        const data = await prisma.nagazap.findUnique({ where: { id }, include: nagazap_include })
+        if (data) {
+            return new Nagazap(data)
+        } else {
+            throw new HandledError({ code: HandledErrorCode.nagazap_not_found, text: "Nagazap não encontrado" })
+        }
     }
 
     static async getByUserId(user_id: string) {
@@ -119,7 +143,7 @@ export class Nagazap {
                     nagazap.bake()
                 }
             } catch (error) {
-                if (error instanceof HandledError && error.code === HandledErrorCode.no_nagazap) {
+                if (error instanceof HandledError && error.code === HandledErrorCode.nagazap_not_found) {
                 } else {
                     console.log(error)
                 }
@@ -144,12 +168,27 @@ export class Nagazap {
         this.failedMessages = JSON.parse(data.failedMessages)
         this.userId = data.userId
         this.user = new User(data.user)
+        this.displayName = data.displayName
+        this.displayPhone = data.displayPhone
     }
 
     async getMessages() {
         const data = await prisma.nagazapMessage.findMany()
         const messages = data.map((item) => new NagaMessage(item))
         return messages
+    }
+
+    async update(data: Partial<WithoutFunctions<Nagazap>>) {
+        const updated = await prisma.nagazap.update({
+            where: { id: this.id },
+            data: { token: data.token, displayName: data.displayName, displayPhone: data.displayPhone, lastUpdated: new Date().getTime().toString() },
+        })
+        this.token = updated.token
+        this.displayName = updated.displayName
+        this.displayPhone = updated.displayPhone
+        this.lastUpdated = updated.lastUpdated
+        this.emit()
+        return this
     }
 
     async updateToken(token: string) {
@@ -164,12 +203,16 @@ export class Nagazap {
     }
 
     async getInfo() {
-        const response = await api.get(`/${this.businessId}?fields=id,name,phone_numbers`, {
-            headers: this.buildHeaders(),
-        })
+        try {
+            const response = await api.get(`/${this.businessId}?fields=id,name,phone_numbers`, {
+                headers: this.buildHeaders(),
+            })
 
-        console.log(JSON.stringify(response.data, null, 4))
-        return response.data
+            console.log(JSON.stringify(response.data, null, 4))
+            return response.data as BusinessInfo
+        } catch (error) {
+            console.log(JSON.stringify(error, null, 4))
+        }
     }
 
     async saveMessage(data: NagaMessageForm) {

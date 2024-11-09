@@ -1,7 +1,8 @@
 import { WithoutFunctions } from "./helpers"
 
 export enum HandledErrorCode {
-    no_nagazap = 1,
+    nagazap_not_found = 1,
+    nagazap_no_info = 2,
 }
 
 export class HandledError {
