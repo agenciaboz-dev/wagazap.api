@@ -10,6 +10,7 @@ import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
 import { User } from "./User"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
+import { TemplateForm, TemplateFormResponse } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
@@ -402,8 +403,16 @@ export class Nagazap {
         await prisma.nagazap.update({ where: { id: this.id }, data: { failedMessages: JSON.stringify(this.failedMessages) } })
     }
 
+    async createTemplate(data: TemplateForm) {
+        const response = await api.post(`/${this.businessId}/message_templates`, data, {
+            headers: this.buildHeaders(),
+        })
+        const result = response.data as TemplateFormResponse
+        return result
+    }
+
     emit() {
         const io = getIoInstance()
-        io.emit("nagazap:update", this)
+        io.emit(`nagazap:${this.id}:update`, this)
     }
 }

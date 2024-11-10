@@ -4,6 +4,4 @@ node_modules
 dist
 .wwebjs_cache
 whatsapp.auth*
-static/users
-static/customers
-static/washima
+static
