@@ -74,6 +74,18 @@ router.patch("/", async (request: Request, response: Response) => {
     }
 })
 
+router.delete("/", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string
+
+    try {
+        const deleted = await Nagazap.delete(Number(nagazap_id))
+        response.json(deleted)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 router.get("/info", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {

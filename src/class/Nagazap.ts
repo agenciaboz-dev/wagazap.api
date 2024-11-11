@@ -161,6 +161,11 @@ export class Nagazap {
         })
     }
 
+    static async delete(id: number) {
+        const data = await prisma.nagazap.delete({where: {id}})
+        return data
+    }
+
     constructor(data: NagazapPrisma) {
         this.id = data.id
         this.token = data.token
@@ -187,6 +192,7 @@ export class Nagazap {
         const messages = data.map((item) => new NagaMessage(item))
         return messages
     }
+
 
     async update(data: Partial<WithoutFunctions<Nagazap>>) {
         const updated = await prisma.nagazap.update({
