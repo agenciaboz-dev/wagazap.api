@@ -14,6 +14,7 @@ import { TemplateForm, TemplateFormResponse } from "../types/shared/Meta/Whatsap
 import { MediaResponse } from "../types/shared/Meta/WhatsappBusiness/MediaResponse"
 import path from "path"
 import { saveFile } from "../tools/saveFile"
+import { MessageWebhookType } from "../types/shared/Meta/WhatsappBusiness/MessageWebhook"
 
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
@@ -28,6 +29,7 @@ export class NagaMessage {
     timestamp: string
     text: string
     name: string
+    type: MessageWebhookType
 
     constructor(data: NagaMessagePrisma) {
         this.id = data.id
@@ -35,6 +37,7 @@ export class NagaMessage {
         this.timestamp = data.timestamp
         this.text = data.text
         this.name = data.name
+        this.type = data.type as MessageWebhookType
     }
 }
 
