@@ -10,6 +10,7 @@ import { HandledError } from "../../class/HandledError"
 import { requireNagazapId } from "../../middlewares/requireNagazapId"
 import webhook from "./webhook"
 import { TemplateForm } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
+import stats from "./stats"
 
 const router = express.Router()
 
@@ -22,6 +23,7 @@ export const getNumbers = (original_number: string | number) => {
 }
 
 router.use("/webhook", webhook)
+router.use("/stats", stats)
 
 router.get("/", async (request: Request, response: Response) => {
     const user_id = request.query.user_id as string | undefined

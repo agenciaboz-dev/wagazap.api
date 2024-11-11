@@ -5,6 +5,7 @@ import { uid } from "uid"
 import { WithoutFunctions } from "./helpers"
 import { Washima } from "./Washima/Washima"
 import numeral from "numeral"
+import { Nagazap, nagazap_include } from "./Nagazap"
 
 export type UserPrisma = Prisma.UserGetPayload<{}>
 
@@ -116,5 +117,47 @@ export class User {
         ).reduce((total, current) => total + current, 0)
 
         return numeral(total_size).format("0.00 b")
+    }
+
+    async getNagazapsCount() {
+        const nagazaps = await prisma.nagazap.count({ where: { user: { id: this.id } } })
+        return nagazaps
+    }
+
+    async getNagazaps() {
+        const nagazaps = await prisma.nagazap.findMany({ where: { user: { id: this.id } }, include: nagazap_include })
+        return nagazaps.map((item) => new Nagazap(item))
+    }
+
+    async getNagazapsTemplatesCount() {
+        const nagazaps = await this.getNagazaps()
+        const templates = (
+            await Promise.all(
+                nagazaps.map(async (nagazap) => {
+                    const nagazap_templates = await nagazap.getTemplates()
+                    return nagazap_templates.length as number
+                })
+            )
+        ).reduce((total, templates) => templates + total, 0)
+        return templates
+    }
+
+    async getNagazapsLogsCount() {
+        const nagazaps = await this.getNagazaps()
+        const success = nagazaps.reduce((total, nagazap) => nagazap.sentMessages.length + total, 0)
+        const error = nagazaps.reduce((total, nagazap) => nagazap.failedMessages.length + total, 0)
+        return { success, error }
+    }
+
+    async getBakingMessagesCount() {
+        const nagazaps = await this.getNagazaps()
+        const count = nagazaps.reduce((total, nagazap) => nagazap.stack.length + total, 0)
+        return count
+    }
+
+    async getBlacklistedCount() {
+        const nagazaps = await this.getNagazaps()
+        const count = nagazaps.reduce((total, nagazap) => nagazap.blacklist.length + total, 0)
+        return count
     }
 }
