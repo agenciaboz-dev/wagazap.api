@@ -379,6 +379,9 @@ export class Nagazap {
 
         this.stack = this.stack.slice(this.batchSize)
         await this.saveStack()
+        if (this.stack.length === 0) {
+            await this.pause()
+        }
     }
 
     async pause() {
