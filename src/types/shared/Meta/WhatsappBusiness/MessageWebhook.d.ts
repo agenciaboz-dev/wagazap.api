@@ -1,3 +1,5 @@
+export type MessageWebhookType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
+
 export interface MessageWebhook {
     object: "whatsapp_business_account"
     entry: [
@@ -24,11 +26,39 @@ export interface MessageWebhook {
                                 from: string // remetente
                                 id: string
                                 timestamp: string // unix timestamp, multiply by 1000 to get javascript timestamp
+                                context?: {
+                                    from: string
+                                    id: string
+                                }
                                 text?: {
                                     body: string // message text
                                 }
                                 button?: { payload: string; text: string }
-                                type: "text"
+                                reaction?: {
+                                    message_id: string
+                                    emoji: string
+                                }
+                                sticker?: {
+                                    mime_type: "image/webp"
+                                    sha256: string
+                                    id: string
+                                    animated: boolean
+                                }
+                                image?: {
+                                    mime_type: "image/jpeg"
+                                    sha256: string
+                                    id: string
+                                }
+                                video?: {
+                                    mime_type: string
+                                    sha256: string
+                                    id: string
+                                }
+                                audio?: {
+                                    mime_type: string
+                                    id: string
+                                }
+                                type: MessageWebhookType
                             }
                         ]
                     }

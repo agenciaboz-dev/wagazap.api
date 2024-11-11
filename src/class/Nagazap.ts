@@ -11,6 +11,9 @@ import { WithoutFunctions } from "./helpers"
 import { User } from "./User"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
 import { TemplateForm, TemplateFormResponse } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
+import { MediaResponse } from "../types/shared/Meta/WhatsappBusiness/MediaResponse"
+import path from "path"
+import { saveFile } from "../tools/saveFile"
 
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
@@ -430,6 +433,15 @@ export class Nagazap {
         })
         console.log(upload_response.data)
         return upload_response.data
+    }
+
+    async downloadMedia(media_id: string) {
+        const response = await api.get(`/${media_id}`, { headers: this.buildHeaders() })
+        const media_object = response.data as MediaResponse
+
+        const media_response = await axios.get(media_object.url, { headers: { Authorization: `Bearer ${this.token}`, responseType: "arraybuffer" } })
+        const { url } = saveFile(`nagazap/${this.id}/media`, { file: media_response.data, name: media_object.id })
+        return url
     }
 
     emit() {

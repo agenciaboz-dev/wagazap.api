@@ -38,6 +38,7 @@ model NagazapMessage {
     from        String
     timestamp   String
     text        String      @db.LongText
+    type        String      @default("text")
     nagazap_id  Int
     nagazap     Nagazap     @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }

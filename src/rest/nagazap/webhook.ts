@@ -1,5 +1,5 @@
 import express, { Express, Request, Response } from "express"
-import { MessageWebhook } from "../../types/shared/Meta/WhatsappBusiness/MessageWebhook"
+import { MessageWebhook, MessageWebhookType } from "../../types/shared/Meta/WhatsappBusiness/MessageWebhook"
 import { Nagazap } from "../../class/Nagazap"
 const router = express.Router()
 
@@ -31,11 +31,29 @@ router.post("/messages", async (request: Request, response: Response) => {
                 if (change.field !== "messages") return
                 change.value.messages?.forEach(async (message) => {
                     console.log(message)
+                    const data_types: { type: MessageWebhookType; data?: string }[] = [
+                        { type: "audio", data: message.audio?.id },
+                        { type: "image", data: message.image?.id },
+                        { type: "reaction", data: message.reaction?.emoji },
+                        { type: "sticker", data: message.sticker?.id },
+                        { type: "text", data: message.text?.body },
+                        { type: "video", data: message.video?.id },
+                        { type: "button", data: message.button?.text },
+                    ]
+                    const data = data_types.find((item) => item.type === message.type)
+                    if (data && data.data) {
+                        if (data.type !== "text" && data.type !== "button") {
+                            const media_url = await nagazap.downloadMedia(data.data)
+                            data.data = media_url
+                        }
+                    }
+
                     nagazap.saveMessage({
                         from: message.from.slice(2),
-                        text: message.text?.body || message.button?.text || "**MENSAGEM DE MIDIA**",
+                        text: data?.data || "**EM DESENVOLVIMENTO**",
                         timestamp: message.timestamp,
                         name: change.value.contacts[0].profile?.name || "",
+                        type: message.type,
                     })
                 })
             })
