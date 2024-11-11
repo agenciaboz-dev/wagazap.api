@@ -441,8 +441,7 @@ export class Nagazap {
     async downloadMedia(media_id: string) {
         const response = await api.get(`/${media_id}`, { headers: this.buildHeaders() })
         const media_object = response.data as MediaResponse
-
-        const media_response = await axios.get(media_object.url, { headers: { Authorization: `Bearer ${this.token}`, responseType: "arraybuffer" } })
+        const media_response = await axios.get(media_object.url, { headers: { Authorization: `Bearer ${this.token}` }, responseType: "arraybuffer" })
         const { url } = saveFile(`nagazap/${this.id}/media`, {
             file: media_response.data,
             name: media_object.id + "." + media_object.mime_type.split("/")[1].split(";")[0],
