@@ -194,7 +194,7 @@ export class Nagazap {
     }
 
     async getMessages() {
-        const data = await prisma.nagazapMessage.findMany()
+        const data = await prisma.nagazapMessage.findMany({ where: { nagazap_id: this.id } })
         const messages = data.map((item) => new NagaMessage(item))
         return messages
     }
@@ -247,7 +247,7 @@ export class Nagazap {
 
         const message = new NagaMessage(prisma_message)
         const io = getIoInstance()
-        io.emit("nagazap:message", message)
+        io.emit(`nagazap:${this.id}:message`, message)
 
         if (message.text.toLowerCase() == "parar promoções") {
             this.addToBlacklist(message.from)
