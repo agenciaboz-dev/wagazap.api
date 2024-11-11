@@ -215,34 +215,16 @@ router.post("/template", async (request: Request, response: Response) => {
         if (request.files) {
             const file = request.files.file as UploadedFile
             file.name = file.name.replace(/[\s\/\\?%*:|"<>]+/g, "-").trim()
-            const uploaded = saveFile("nagazap/image", { name: file.name, file: file.data }, async () => {
-                try {
-                    const image_id = await nagazap.uploadMedia(file, uploaded.filepath)
-                    data.components.forEach((component, index) => {
-                        if (component.format === "IMAGE") {
-                            data.components[index].example = { header_handle: [image_id] }
-                        }
-                    })
-                    const template_response = await nagazap.createTemplate(data)
-                    response.json(template_response)
-                } catch (error) {
-                    if (error instanceof AxiosError && error.response?.status === 400) {
-                        console.log(error.response.data)
-                        return response
-                            .status(400)
-                            .send(
-                                error.response.data.error.message ||
-                                    `${error.response.data.error.error_user_title}. ${error.response.data.error.error_user_msg}`
-                            )
-                    }
-                    console.log(error)
-                    response.status(500).send(error)
+            const media_handler = await nagazap.uploadTemplateMedia(file)
+            data.components.forEach((component, index) => {
+                if (component.type === "HEADER") {
+                    data.components[index].example = { header_handle: [media_handler.h] }
                 }
             })
-        } else {
-            const template_response = await nagazap.createTemplate(data)
-            response.json(template_response)
         }
+
+        const template_response = await nagazap.createTemplate(data)
+        response.json(template_response)
     } catch (error) {
         if (error instanceof AxiosError && error.response?.status === 400) {
             console.log(error.response.data)

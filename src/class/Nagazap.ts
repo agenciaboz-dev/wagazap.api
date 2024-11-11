@@ -162,7 +162,7 @@ export class Nagazap {
     }
 
     static async delete(id: number) {
-        const data = await prisma.nagazap.delete({where: {id}})
+        const data = await prisma.nagazap.delete({ where: { id } })
         return data
     }
 
@@ -192,7 +192,6 @@ export class Nagazap {
         const messages = data.map((item) => new NagaMessage(item))
         return messages
     }
-
 
     async update(data: Partial<WithoutFunctions<Nagazap>>) {
         const updated = await prisma.nagazap.update({
@@ -418,6 +417,19 @@ export class Nagazap {
         })
         const result = response.data as TemplateFormResponse
         return result
+    }
+
+    async uploadTemplateMedia(file: UploadedFile) {
+        const session_id_response = await api.post(
+            `/${this.appId}/uploads?file_name=${file.name}&file_length=${file.size}&file_type=${file.mimetype}&access_token=${this.token}`
+        )
+        const session_id = session_id_response.data.id as string
+
+        const upload_response = await api.post(`/${session_id}`, file.data, {
+            headers: { Authorization: `OAuth ${this.token}`, "Content-Type": "application/octet-stream" },
+        })
+        console.log(upload_response.data)
+        return upload_response.data
     }
 
     emit() {
