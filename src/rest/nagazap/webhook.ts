@@ -1,6 +1,6 @@
 import express, { Express, Request, Response } from "express"
-import { MessageWebhook, MessageWebhookType } from "../../types/shared/Meta/WhatsappBusiness/MessageWebhook"
-import { Nagazap } from "../../class/Nagazap"
+import { MessageWebhook } from "../../types/shared/Meta/WhatsappBusiness/MessageWebhook"
+import { NagaMessageType, Nagazap } from "../../class/Nagazap"
 const router = express.Router()
 
 router.get("/messages", async (request: Request, response: Response) => {
@@ -31,7 +31,7 @@ router.post("/messages", async (request: Request, response: Response) => {
                 if (change.field !== "messages") return
                 change.value.messages?.forEach(async (message) => {
                     console.log(message)
-                    const data_types: { type: MessageWebhookType; data?: string }[] = [
+                    const data_types: { type: NagaMessageType; data?: string }[] = [
                         { type: "audio", data: message.audio?.id },
                         { type: "image", data: message.image?.id },
                         { type: "reaction", data: message.reaction?.emoji },
@@ -42,7 +42,7 @@ router.post("/messages", async (request: Request, response: Response) => {
                     ]
                     const data = data_types.find((item) => item.type === message.type)
                     if (data && data.data) {
-                        if (data.type !== "text" && data.type !== "button") {
+                        if (data.type !== "text" && data.type !== "button" && data.type !== "reaction") {
                             const media_url = await nagazap.downloadMedia(data.data)
                             data.data = media_url
                         }

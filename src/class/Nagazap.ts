@@ -14,8 +14,8 @@ import { TemplateForm, TemplateFormResponse } from "../types/shared/Meta/Whatsap
 import { MediaResponse } from "../types/shared/Meta/WhatsappBusiness/MediaResponse"
 import path from "path"
 import { saveFile } from "../tools/saveFile"
-import { MessageWebhookType } from "../types/shared/Meta/WhatsappBusiness/MessageWebhook"
 
+export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
 export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ user: true })
@@ -29,7 +29,7 @@ export class NagaMessage {
     timestamp: string
     text: string
     name: string
-    type: MessageWebhookType
+    type: NagaMessageType
 
     constructor(data: NagaMessagePrisma) {
         this.id = data.id
@@ -37,7 +37,7 @@ export class NagaMessage {
         this.timestamp = data.timestamp
         this.text = data.text
         this.name = data.name
-        this.type = data.type as MessageWebhookType
+        this.type = data.type as NagaMessageType
     }
 }
 
@@ -443,7 +443,10 @@ export class Nagazap {
         const media_object = response.data as MediaResponse
 
         const media_response = await axios.get(media_object.url, { headers: { Authorization: `Bearer ${this.token}`, responseType: "arraybuffer" } })
-        const { url } = saveFile(`nagazap/${this.id}/media`, { file: media_response.data, name: media_object.id })
+        const { url } = saveFile(`nagazap/${this.id}/media`, {
+            file: media_response.data,
+            name: media_object.id + "." + media_object.mime_type.split("/")[1].split(";")[0],
+        })
         return url
     }
 

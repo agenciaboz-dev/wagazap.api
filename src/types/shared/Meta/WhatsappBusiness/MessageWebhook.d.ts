@@ -1,5 +1,3 @@
-export type MessageWebhookType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
-
 export interface MessageWebhook {
     object: "whatsapp_business_account"
     entry: [
@@ -58,7 +56,7 @@ export interface MessageWebhook {
                                     mime_type: string
                                     id: string
                                 }
-                                type: MessageWebhookType
+                                type: NagaMessageType
                             }
                         ]
                     }
