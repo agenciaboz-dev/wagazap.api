@@ -19,3 +19,8 @@ export interface FailedMessageLog {
     }
     number: string
 }
+
+export interface BlacklistLog {
+    timestamp: string
+    number: string
+}

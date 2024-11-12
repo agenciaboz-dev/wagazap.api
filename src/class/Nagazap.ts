@@ -5,7 +5,7 @@ import { OvenForm, WhatsappApiForm, WhatsappForm, WhatsappTemplateComponent } fr
 import { UploadedFile } from "express-fileupload"
 import * as fs from "fs"
 import { getIoInstance } from "../io/socket"
-import { FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappBusiness/Logs"
+import { BlacklistLog, FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappBusiness/Logs"
 import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
 import { User } from "./User"
@@ -62,7 +62,7 @@ export class Nagazap {
     businessId: string
     lastUpdated: string
     stack: WhatsappForm[]
-    blacklist: string[]
+    blacklist: BlacklistLog[]
     frequency: string
     batchSize: number
     lastMessageTime: string
@@ -180,7 +180,7 @@ export class Nagazap {
         this.businessId = data.businessId
         this.lastUpdated = data.lastUpdated
         this.stack = JSON.parse(data.stack)
-        this.blacklist = JSON.parse(data.blacklist)
+
         this.frequency = data.frequency
         this.batchSize = data.batchSize
         this.lastMessageTime = data.lastMessageTime
@@ -191,6 +191,25 @@ export class Nagazap {
         this.user = new User(data.user)
         this.displayName = data.displayName
         this.displayPhone = data.displayPhone
+
+        this.blacklist = this.loadBlacklist(JSON.parse(data.blacklist))
+    }
+
+    loadBlacklist(saved_list: any[]) {
+        const old_format = saved_list.filter((item) => typeof item === "string")
+        const new_format = saved_list.filter((item) => !!item.timestamp) as BlacklistLog[]
+
+        const first_message = this.sentMessages.reduce((previous, current) => (previous.timestamp < current.timestamp ? previous : current))
+
+        const new_list: BlacklistLog[] = [
+            ...old_format.map((item) => {
+                const matching_number_message = this.sentMessages.find((message) => message.data.contacts[0].wa_id.slice(2) === item)
+                return { number: item, timestamp: matching_number_message?.timestamp || first_message.timestamp }
+            }),
+            ...new_format,
+        ]
+
+        return new_list
     }
 
     async getMessages() {
@@ -256,16 +275,16 @@ export class Nagazap {
     }
 
     async addToBlacklist(number: string) {
-        if (this.blacklist.includes(number)) return
-        this.blacklist.push(number)
+        if (this.blacklist.find((item) => item.number === number)) return
+        this.blacklist.push({ number, timestamp: new Date().getTime().toString() })
         await prisma.nagazap.update({ where: { id: this.id }, data: { blacklist: JSON.stringify(this.blacklist) } })
         console.log(`número ${number} adicionado a blacklist`)
         this.emit()
     }
 
     async removeFromBlacklist(number: string) {
-        if (!this.blacklist.includes(number)) return
-        this.blacklist = this.blacklist.filter((item) => item != number)
+        if (this.blacklist.find((item) => item.number === number)) return
+        this.blacklist = this.blacklist.filter((item) => item.number != number)
         await prisma.nagazap.update({ where: { id: this.id }, data: { blacklist: JSON.stringify(this.blacklist) } })
         console.log(`número ${number} removido da blacklist`)
         this.emit()
@@ -297,7 +316,7 @@ export class Nagazap {
 
     async sendMessage(message: WhatsappForm) {
         const number = message.number.toString().replace(/\D/g, "")
-        if (this.blacklist.includes(number.length == 10 ? number : number.slice(0, 2) + number.slice(3))) {
+        if (this.blacklist.find((item) => item.number === (number.length == 10 ? number : number.slice(0, 2) + number.slice(3)))) {
             console.log(`mensagem não enviada para ${number} pois está na blacklist`)
             return
         }
