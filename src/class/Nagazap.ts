@@ -283,7 +283,7 @@ export class Nagazap {
     }
 
     async removeFromBlacklist(number: string) {
-        if (this.blacklist.find((item) => item.number === number)) return
+        if (!this.blacklist.find((item) => item.number === number)) return
         this.blacklist = this.blacklist.filter((item) => item.number != number)
         await prisma.nagazap.update({ where: { id: this.id }, data: { blacklist: JSON.stringify(this.blacklist) } })
         console.log(`número ${number} removido da blacklist`)
