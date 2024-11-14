@@ -2,6 +2,8 @@ import express, { Express, Request, Response } from "express"
 import { User } from "../../class/User"
 import { requireUserId } from "../../middlewares/requireUserId"
 import { Washima } from "../../class/Washima/Washima"
+import { parseFormattedSize } from "../../tools/parseFormattedSize"
+import numeral from "numeral"
 
 const router = express.Router()
 
@@ -13,9 +15,9 @@ router.get("/washima", async (request: Request, response: Response) => {
     try {
         const user = await User.findById(user_id)
         if (user) {
-            const washimas = user.admin ? await Washima.list() : user.getWashimas()
+            const washimas = user.admin ? Washima.washimas : user.getWashimas()
             const connected = washimas.filter((washima) => washima.ready).length
-            const pending = (await user.getWashimasCount()) - connected
+            const pending = (user.admin ? Washima.washimas.length : await user.getWashimasCount()) - connected
             response.json({ connected, pending })
         } else {
             response.status(404).send("user not found")
@@ -54,8 +56,14 @@ router.get("/storage", async (request: Request, response: Response) => {
         const user = await User.findById(user_id)
         if (user) {
             const total_disk = user?.admin
-                ? (await Promise.all((await User.getAll()).map(async (user) => await user.getTotalStorage()))).reduce((total, count) => total + count)
+                ? numeral(
+                      (await Promise.all((await User.getAll()).map(async (user) => await user.getTotalStorage()))).reduce(
+                          (total, count) => total + parseFormattedSize(count),
+                          0
+                      )
+                  ).format("0.00 b")
                 : await user.getTotalStorage()
+            console.log(total_disk)
             response.json(total_disk)
         } else {
             response.status(404).send("user not found")
