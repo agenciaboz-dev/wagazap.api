@@ -233,7 +233,9 @@ router.post("/template", async (request: Request, response: Response) => {
             return response
                 .status(400)
                 .send(
-                    error.response.data.error.message || `${error.response.data.error.error_user_title}. ${error.response.data.error.error_user_msg}`
+                    error.response.data.error.error_user_title && error.response.data.error.error_user_msg
+                        ? `${error.response.data.error.error_user_title}. ${error.response.data.error.error_user_msg}`
+                        : error.response.data.error.message
                 )
         }
         console.log(error)
