@@ -13,7 +13,7 @@ router.get("/washima", async (request: Request, response: Response) => {
     try {
         const user = await User.findById(user_id)
         if (user) {
-            const washimas = user.admin ? Washima.washimas : user.getWashimas()
+            const washimas = user.admin ? await Washima.list() : user.getWashimas()
             const connected = washimas.filter((washima) => washima.ready).length
             const pending = (await user.getWashimasCount()) - connected
             response.json({ connected, pending })
