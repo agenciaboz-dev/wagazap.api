@@ -6,10 +6,16 @@ import { WithoutFunctions } from "./helpers"
 import { Washima } from "./Washima/Washima"
 import numeral from "numeral"
 import { Nagazap, nagazap_include } from "./Nagazap"
+import { getIoInstance } from "../io/socket"
 
 export type UserPrisma = Prisma.UserGetPayload<{}>
 
 export type UserForm = Omit<WithoutFunctions<User>, "id" | "admin">
+
+export interface UserNotification {
+    title: string
+    body: string
+}
 
 export class User {
     id: string
@@ -159,5 +165,10 @@ export class User {
         const nagazaps = await this.getNagazaps()
         const count = nagazaps.reduce((total, nagazap) => nagazap.blacklist.length + total, 0)
         return count
+    }
+
+    notify(reason: string, data: UserNotification) {
+        const io = getIoInstance()
+        io.emit(`user:${this.id}:notify:${reason}`, data)
     }
 }
