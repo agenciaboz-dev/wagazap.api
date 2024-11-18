@@ -11,6 +11,7 @@ import { requireNagazapId } from "../../middlewares/requireNagazapId"
 import webhook from "./webhook"
 import { TemplateForm } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import stats from "./stats"
+import { User } from "../../class/User"
 
 const router = express.Router()
 
@@ -36,7 +37,8 @@ router.get("/", async (request: Request, response: Response) => {
             response.json(nagazap)
         } else {
             try {
-                const nagazaps = await Nagazap.getByUserId(user_id)
+                const user = await User.findById(user_id)
+                const nagazaps = user?.admin ? await Nagazap.getAll() : await Nagazap.getByUserId(user_id)
                 response.json(nagazaps)
             } catch (error) {
                 console.log(error)
@@ -231,7 +233,9 @@ router.post("/template", async (request: Request, response: Response) => {
             return response
                 .status(400)
                 .send(
-                    error.response.data.error.message || `${error.response.data.error.error_user_title}. ${error.response.data.error.error_user_msg}`
+                    error.response.data.error.error_user_title && error.response.data.error.error_user_msg
+                        ? `${error.response.data.error.error_user_title}. ${error.response.data.error.error_user_msg}`
+                        : error.response.data.error.message
                 )
         }
         console.log(error)

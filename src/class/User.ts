@@ -44,6 +44,11 @@ export class User {
         return null
     }
 
+    static async getAll() {
+        const data = await prisma.user.findMany()
+        return data.map((item) => new User(item))
+    }
+
     static async findById(id: string) {
         const data = await prisma.user.findFirst({ where: { id } })
         if (data) return new User(data)
