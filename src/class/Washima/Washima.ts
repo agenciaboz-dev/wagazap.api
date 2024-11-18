@@ -380,7 +380,10 @@ export class Washima {
                     })
 
                     this.users.forEach((user) =>
-                        user.notify("washima-message", { title: `${this.name}: ${chat.name}. ${message.author}`, body: message.body || "MEDIA" })
+                        user.notify("washima-message", {
+                            title: `${this.name}: ${chat.name}. ${chat.isGroup ? message.author : ""}`,
+                            body: message.body || "MEDIA",
+                        })
                     )
                     io.emit("washima:message", { chat, message: washima_message }, this.id)
                     io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
