@@ -406,6 +406,8 @@ export class Nagazap {
         if (this.stack.length === 0) {
             await this.pause()
         }
+
+        this.user.notify("nagazap-batch", { title: "Nagazap: Forno", body: `${sent.length} mensagens foram enviadas.` })
     }
 
     async pause() {
