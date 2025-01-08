@@ -199,12 +199,14 @@ export class Nagazap {
         const old_format = saved_list.filter((item) => typeof item === "string")
         const new_format = saved_list.filter((item) => !!item.timestamp) as BlacklistLog[]
 
-        const first_message = this.sentMessages.reduce((previous, current) => (previous.timestamp < current.timestamp ? previous : current))
+        const first_message = !!this.sentMessages.length
+            ? this.sentMessages?.reduce((previous, current) => (previous.timestamp < current.timestamp ? previous : current))
+            : null
 
         const new_list: BlacklistLog[] = [
             ...old_format.map((item) => {
                 const matching_number_message = this.sentMessages.find((message) => message.data.contacts[0].wa_id.slice(2) === item)
-                return { number: item, timestamp: matching_number_message?.timestamp || first_message.timestamp }
+                return { number: item, timestamp: matching_number_message?.timestamp || first_message?.timestamp || "0" }
             }),
             ...new_format,
         ]
