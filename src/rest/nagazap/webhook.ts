@@ -3,6 +3,8 @@ import { MessageWebhook } from "../../types/shared/Meta/WhatsappBusiness/Message
 import { NagaMessageType, Nagazap } from "../../class/Nagazap"
 const router = express.Router()
 
+// https://apiwagazap.boz.app.br/nagazap/webhook/messages
+
 router.get("/messages", async (request: Request, response: Response) => {
     const mode = request.query["hub.mode"]
 
