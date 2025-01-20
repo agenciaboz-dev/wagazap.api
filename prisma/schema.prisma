@@ -88,6 +88,7 @@ model WashimaMessage {
     ack         Int?
     edited      Boolean         @default(false)
     deleted     Boolean         @default(false)
+    replied_to  Json?
 
     @@fulltext([body])
 }

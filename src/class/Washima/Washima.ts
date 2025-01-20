@@ -196,7 +196,14 @@ export class Washima {
         }
     }
 
-    static async sendMessage(socket: Socket, washima_id: string, chat_id: string, message?: string, media?: WashimaMediaForm) {
+    static async sendMessage(
+        socket: Socket,
+        washima_id: string,
+        chat_id: string,
+        message?: string,
+        media?: WashimaMediaForm,
+        replyMessage?: WashimaMessage
+    ) {
         try {
             const washima = Washima.find(washima_id)
             if (washima && chat_id) {
@@ -210,7 +217,7 @@ export class Washima {
 
                     media.base64 = convertedBase64
                 }
-                await washima.sendMessage(chat_id, message, media)
+                await washima.sendMessage(chat_id, message, media, replyMessage)
                 socket.emit("washima:message:sent")
             }
         } catch (error) {
@@ -494,12 +501,12 @@ export class Washima {
         return message
     }
 
-    async sendMessage(chat_id: string, message?: string, media?: WashimaMediaForm) {
+    async sendMessage(chat_id: string, message?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage) {
         const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
         if (!message && !mediaMessage) return
 
         const chat = await this.client.getChatById(chat_id)
-        await chat.sendMessage((message || mediaMessage)!, { media: mediaMessage, sendAudioAsVoice: true })
+        await chat.sendMessage((message || mediaMessage)!, { media: mediaMessage, sendAudioAsVoice: true, quotedMessageId: replyMessage?.sid })
     }
 
     async getContact(contact_id: string) {

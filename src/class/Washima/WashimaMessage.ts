@@ -42,6 +42,7 @@ export class WashimaMessage {
     ack?: MessageAck | null
     edited: boolean
     deleted: boolean
+    replied_to?: WashimaMessage | null
 
     static async getChatMessages(chat_id: string, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -74,6 +75,13 @@ export class WashimaMessage {
         return messages_result
     }
 
+    static async getBySid(sid: string) {
+        const result = await prisma.washimaMessage.findUnique({ where: { sid } })
+        if (!result) throw "messagem não encontrada"
+
+        return new WashimaMessage(result)
+    }
+
     static async new(data: WashimaMessageForm) {
         const message = data.message
 
@@ -82,6 +90,11 @@ export class WashimaMessage {
             message.author = contact.name || `${contact.pushname} - ${contact.number}`
         }
 
+        let washimaQuotedMessage: WashimaMessage | undefined = undefined
+        if (message.hasQuotedMsg) {
+            const quotedMessage = await message.getQuotedMessage()
+            washimaQuotedMessage = await WashimaMessage.getBySid(quotedMessage.id._serialized)
+        }
         const saved = await prisma.washimaMessage.create({
             data: {
                 washima_id: data.washima_id,
@@ -97,6 +110,7 @@ export class WashimaMessage {
                 type: message.type || "",
                 ack: message.ack || 0,
                 author: message.author || "",
+                replied_to: JSON.stringify(washimaQuotedMessage) || undefined,
             },
         })
 
@@ -163,5 +177,6 @@ export class WashimaMessage {
         this.ack = data.ack
         this.edited = data.edited
         this.deleted = data.deleted
+        this.replied_to = data.replied_to ? (JSON.parse(data.replied_to as string) as WashimaMessage) : null
     }
 }

@@ -3,6 +3,7 @@ import { Server as SocketIoServer } from "socket.io"
 import { Server as HttpServer } from "http"
 import { Server as HttpsServer } from "https"
 import { Washima, WashimaMediaForm } from "../class/Washima/Washima"
+import { WashimaMessage } from "../class/Washima/WashimaMessage"
 
 let io: SocketIoServer | null = null
 
@@ -20,8 +21,6 @@ export const getIoInstance = () => {
     return io
 }
 
-
-
 export const handleSocket = (socket: Socket) => {
     console.log(`new connection: ${socket.id}`)
 
@@ -30,14 +29,10 @@ export const handleSocket = (socket: Socket) => {
         console.log({ reason })
     })
 
-    socket.on("washima:message", (washima_id: string, chat_id: string, message?: string, media?: WashimaMediaForm) =>
-        Washima.sendMessage(socket, washima_id, chat_id, message, media)
+    socket.on("washima:message", (washima_id: string, chat_id: string, message?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage) =>
+        Washima.sendMessage(socket, washima_id, chat_id, message, media, replyMessage)
     )
     socket.on("washima:message:contact", (washima_id: string, contact_id: string, message_id: string) =>
         Washima.getContact(socket, washima_id, contact_id, message_id)
     )
-
-
-
-
 }
