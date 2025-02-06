@@ -210,7 +210,7 @@ router.post("/template", async (request: Request, response: Response) => {
 
     try {
         const data = JSON.parse(request.body.data) as TemplateForm
-        console.log(data)
+        console.log(JSON.stringify(data, null, 4))
 
         const nagazap = await Nagazap.getById(Number(nagazap_id))
 
@@ -226,7 +226,8 @@ router.post("/template", async (request: Request, response: Response) => {
         }
 
         const template_response = await nagazap.createTemplate(data)
-        response.json(template_response)
+        const csv_model = await nagazap.exportTemplateModel(data)
+        response.json({ template_response, csv_model })
     } catch (error) {
         if (error instanceof AxiosError && error.response?.status === 400) {
             console.log(error.response.data)

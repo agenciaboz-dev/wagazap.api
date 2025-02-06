@@ -10,10 +10,13 @@ import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
 import { User } from "./User"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
-import { TemplateForm, TemplateFormResponse } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
+import { TemplateForm, TemplateFormResponse, TemplateParam } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import { MediaResponse } from "../types/shared/Meta/WhatsappBusiness/MediaResponse"
-import path from "path"
 import { saveFile } from "../tools/saveFile"
+import * as csvWriter from "csv-writer"
+import { slugify } from "../tools/slugify"
+import { ObjectStringifierHeader } from "csv-writer/src/lib/record"
+import path from "path"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
@@ -446,6 +449,41 @@ export class Nagazap {
         })
         const result = response.data as TemplateFormResponse
         return result
+    }
+
+    async exportTemplateModel(data: TemplateForm) {
+        const components = data.components.filter(
+            (item) => !!item.example?.body_text_named_params?.length || !!item.example?.header_text_named_params?.length
+        )
+
+        const example: { [key: string]: string }[] = [{ telefone: "41999999999" }]
+
+        const params: ObjectStringifierHeader = components
+            .map((component) => {
+                const header = component.example!.header_text_named_params
+                const body = component.example!.body_text_named_params
+
+                const values = (header || body) as TemplateParam[]
+
+                return values.map((param) => {
+                    example[0][param.param_name] = param.example
+                    return { id: param.param_name, title: param.param_name }
+                })
+            })
+            .flatMap((item) => item)
+
+        const basePath = `static/nagazap/${slugify(this.displayName || this.displayPhone || this.id.toString())}/templates`
+        const fullPath = path.join(basePath, `${data.name}.csv`)
+
+        fs.mkdirSync(basePath, { recursive: true })
+
+        const writer = csvWriter.createObjectCsvWriter({
+            path: fullPath,
+            header: [{ id: "telefone", title: "telefone" }, ...params],
+        })
+
+        await writer.writeRecords(example)
+        return fullPath
     }
 
     async uploadTemplateMedia(file: UploadedFile) {
