@@ -1,6 +1,8 @@
 import express, { Express, Request, Response } from "express"
 import { MessageWebhook } from "../../types/shared/Meta/WhatsappBusiness/MessageWebhook"
 import { NagaMessageType, Nagazap } from "../../class/Nagazap"
+import { TemplateUpdateHook } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
+import { getIoInstance } from "../../io"
 const router = express.Router()
 
 // https://apiwagazap.boz.app.br/nagazap/webhook/messages
@@ -32,6 +34,7 @@ router.post("/messages", async (request: Request, response: Response) => {
             entry.changes?.forEach(async (change) => {
                 // MENSAGEM
                 if (change.field === "messages") {
+                    console.log("incoming message webhook")
                     change.value.messages?.forEach(async (message) => {
                         console.log(message)
                         const data_types: { type: NagaMessageType; data?: string }[] = [
@@ -63,6 +66,11 @@ router.post("/messages", async (request: Request, response: Response) => {
 
                 // TEMPLATE
                 if (change.field === "message_template_status_update") {
+                    const template = change.value as unknown as TemplateUpdateHook
+                    console.log("template webhook")
+                    console.log(template)
+                    const io = getIoInstance()
+                    io.emit("template:update", { id: template.message_template_id, status: template.event })
                 }
             })
         })

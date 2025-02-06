@@ -17,6 +17,14 @@ export interface TemplateInfo {
     id: string
 }
 
+export interface TemplateUpdateHook {
+    event: TemplateStatus
+    message_template_id: number
+    message_template_name: string
+    message_template_language: string
+    reason: string | null
+}
+
 export interface TemplateParam {
     param_name: string
     example: string
