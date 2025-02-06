@@ -30,34 +30,40 @@ router.post("/messages", async (request: Request, response: Response) => {
         const nagazap = await Nagazap.getByBusinessId(businessId)
         data.entry?.forEach(async (entry) => {
             entry.changes?.forEach(async (change) => {
-                if (change.field !== "messages") return
-                change.value.messages?.forEach(async (message) => {
-                    console.log(message)
-                    const data_types: { type: NagaMessageType; data?: string }[] = [
-                        { type: "audio", data: message.audio?.id },
-                        { type: "image", data: message.image?.id },
-                        { type: "reaction", data: message.reaction?.emoji },
-                        { type: "sticker", data: message.sticker?.id },
-                        { type: "text", data: message.text?.body },
-                        { type: "video", data: message.video?.id },
-                        { type: "button", data: message.button?.text },
-                    ]
-                    const data = data_types.find((item) => item.type === message.type)
-                    if (data && data.data) {
-                        if (data.type !== "text" && data.type !== "button" && data.type !== "reaction") {
-                            const media_url = await nagazap.downloadMedia(data.data)
-                            data.data = media_url
+                // MENSAGEM
+                if (change.field === "messages") {
+                    change.value.messages?.forEach(async (message) => {
+                        console.log(message)
+                        const data_types: { type: NagaMessageType; data?: string }[] = [
+                            { type: "audio", data: message.audio?.id },
+                            { type: "image", data: message.image?.id },
+                            { type: "reaction", data: message.reaction?.emoji },
+                            { type: "sticker", data: message.sticker?.id },
+                            { type: "text", data: message.text?.body },
+                            { type: "video", data: message.video?.id },
+                            { type: "button", data: message.button?.text },
+                        ]
+                        const data = data_types.find((item) => item.type === message.type)
+                        if (data && data.data) {
+                            if (data.type !== "text" && data.type !== "button" && data.type !== "reaction") {
+                                const media_url = await nagazap.downloadMedia(data.data)
+                                data.data = media_url
+                            }
                         }
-                    }
 
-                    nagazap.saveMessage({
-                        from: message.from.slice(2),
-                        text: data?.data || "**EM DESENVOLVIMENTO**",
-                        timestamp: message.timestamp,
-                        name: change.value.contacts[0].profile?.name || "",
-                        type: message.type,
+                        nagazap.saveMessage({
+                            from: message.from.slice(2),
+                            text: data?.data || "**EM DESENVOLVIMENTO**",
+                            timestamp: message.timestamp,
+                            name: change.value.contacts[0].profile?.name || "",
+                            type: message.type,
+                        })
                     })
-                })
+                }
+
+                // TEMPLATE
+                if (change.field === "message_template_status_update") {
+                }
             })
         })
         response.status(200).send()
