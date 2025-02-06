@@ -17,6 +17,11 @@ export interface TemplateInfo {
     id: string
 }
 
+export interface TemplateParam {
+    param_name: string
+    example: string
+}
+
 export interface TemplateComponent {
     type: "HEADER" | "FOOTER" | "BODY" | "BUTTONS"
     format?: "IMAGE" | "TEXT"
@@ -24,12 +29,15 @@ export interface TemplateComponent {
     buttons?: TemplateButton[]
     file?: File
     example?: {
-        header_handle: string[]
+        header_handle?: string[]
+        header_text_named_params?: TemplateParam[]
+        body_text_named_params?: TemplateParam[]
     }
 }
 
 export type TemplateForm = Omit<TemplateInfo, "status" | "id"> & {
     allow_category_change?: boolean
+    parameter_format?: "NAMED" | "POSITIONAL"
 }
 
 export interface TemplateFormResponse {

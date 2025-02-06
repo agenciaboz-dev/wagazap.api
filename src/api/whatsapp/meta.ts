@@ -10,7 +10,7 @@ const token =
     "EAAEhE4xyg9cBOy23Sw6yZB0EFa1kqTaDzd1SBuZBUb5VGitVrsa3i980oSjSHt9tlxYwNyrghQGZBvWcW6SXgkTCfSEfZBupAMTKZCXiyAiuMkX7TcGdyg4XiI2t8sfuYOd9WWi4ROhYTG5BHJyTMeLCGZAsvvVOzRuXb1rJcGm1i0QjgR9CKRxJGJWRoh0JTgMsxPbrznPgtXL7b6c9nuboNlmXgZD"
 
 export const api = axios.create({
-    baseURL: "https://graph.facebook.com/v19.0/306058415918366",
+    baseURL: "https://graph.facebook.com/v22.0/306058415918366",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
 })
 
