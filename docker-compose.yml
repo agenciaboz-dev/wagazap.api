@@ -2,7 +2,7 @@ name: wagazap.api
 
 services:
   api:
-    image: nandoburgos/wagazap.api
+    image: agenciaboz/wagazap.api
     container_name: wagazap.api
     environment:
       - PORT=8105
