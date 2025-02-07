@@ -10,7 +10,7 @@ import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
 import { User } from "./User"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
-import { TemplateForm, TemplateFormResponse, TemplateParam } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
+import { TemplateForm, TemplateFormResponse, TemplateInfo, TemplateParam } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import { MediaResponse } from "../types/shared/Meta/WhatsappBusiness/MediaResponse"
 import { saveFile } from "../tools/saveFile"
 import * as csvWriter from "csv-writer"
@@ -465,8 +465,17 @@ export class Nagazap {
         return result
     }
 
-    async exportTemplateModel(data: TemplateForm) {
-        const components = data.components.filter(
+    getTemplateSheet(template_name: string) {
+        const basePath = `static/nagazap/${slugify(this.displayName || this.displayPhone || this.id.toString())}/templates`
+        const fullPath = path.join(basePath, `${template_name}.csv`)
+
+        fs.mkdirSync(basePath, { recursive: true })
+
+        return fullPath
+    }
+
+    async exportTemplateModel(template: TemplateForm) {
+        const components = template.components.filter(
             (item) => !!item.example?.body_text_named_params?.length || !!item.example?.header_text_named_params?.length
         )
 
@@ -486,10 +495,7 @@ export class Nagazap {
             })
             .flatMap((item) => item)
 
-        const basePath = `static/nagazap/${slugify(this.displayName || this.displayPhone || this.id.toString())}/templates`
-        const fullPath = path.join(basePath, `${data.name}.csv`)
-
-        fs.mkdirSync(basePath, { recursive: true })
+        const fullPath = this.getTemplateSheet(template.name)
 
         const writer = csvWriter.createObjectCsvWriter({
             path: fullPath,

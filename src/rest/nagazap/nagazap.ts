@@ -12,6 +12,7 @@ import webhook from "./webhook"
 import { TemplateForm } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import stats from "./stats"
 import { User } from "../../class/User"
+import { existsSync } from "fs"
 
 const router = express.Router()
 
@@ -241,6 +242,31 @@ router.post("/template", async (request: Request, response: Response) => {
         }
         console.log(error)
         response.status(500).send(error)
+    }
+})
+
+router.post("/template-sheet", async (request: Request, response: Response) => {
+    const nagazap_id = request.query.nagazap_id as string | undefined
+    const template = request.body as TemplateForm
+
+    if (nagazap_id) {
+        try {
+            const nagazap = await Nagazap.getById(Number(nagazap_id))
+            const path = nagazap.getTemplateSheet(template.name)
+            console.log(path)
+
+            if (!existsSync(path)) {
+                console.log("sheet not found, generating a new one")
+                await nagazap.exportTemplateModel(template)
+            }
+
+            response.json(path)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("nagazap_id param is required")
     }
 })
 
