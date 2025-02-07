@@ -366,22 +366,36 @@ export class Nagazap {
     }
 
     async prepareBatch(data: OvenForm, image_id = "") {
-        const forms: WhatsappForm[] = data.to.map((number) => {
+        console.log(JSON.stringify(data, null, 4))
+        const forms: WhatsappForm[] = data.to.map((item) => {
             return {
-                number,
+                number: item.telefone,
                 template: data.template!.name,
                 language: data.template!.language,
                 components: data
-                    .template!.components.filter((component) => component.format == "IMAGE")
+                    .template!.components.filter((component) => component.format == "IMAGE" || component.example)
                     .map((component) => {
+                        const param_type = component.type === "HEADER" ? "header_text_named_params" : "body_text_named_params"
+
                         const component_data: WhatsappTemplateComponent = {
                             type: component.type.toLowerCase() as "header" | "body" | "footer",
-                            parameters: component.format == "IMAGE" ? [{ type: "image", image: { id: image_id } }] : [],
+                            parameters:
+                                component.format === "IMAGE"
+                                    ? [{ type: "image", image: { id: image_id } }]
+                                    : component.example
+                                    ? component.example[param_type]?.map((example) => ({
+                                          type: "text",
+                                          parameter_name: example.param_name,
+                                          text: item[example.param_name],
+                                      })) || []
+                                    : [],
                         }
                         return component_data
                     }),
             }
         })
+
+        console.log(forms)
 
         await this.queueBatch(forms)
     }

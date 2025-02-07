@@ -22,6 +22,7 @@ export interface WhatsappTemplateParams {
     image?: WhatsappMedia
     video?: WhatsappMedia
     document?: WhatsappMedia
+    parameter_name?: string
 }
 
 export interface WhatsappTemplateComponent {
@@ -43,6 +44,6 @@ export interface WhatsappApiForm {
 }
 
 export interface OvenForm {
-    to: string[]
+    to: { telefone: string; [key: string]: string }[]
     template: TemplateInfo | null
 }
