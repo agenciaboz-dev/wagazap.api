@@ -114,6 +114,7 @@ model User {
 
     admin       Boolean         @default(false)
     owner       Boolean         @default(false)
+    active      Boolean         @default(true)
 
     company_id  String
     company     Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)

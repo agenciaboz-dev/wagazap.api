@@ -7,7 +7,7 @@ import { getIoInstance } from "../io/socket"
 
 export type UserPrisma = Prisma.UserGetPayload<{}>
 
-export type UserForm = Omit<WithoutFunctions<User>, "id"> & { company_id: string }
+export type UserForm = Omit<WithoutFunctions<User>, "id" | "active"> & { company_id: string; active?: boolean }
 
 export interface UserNotification {
     title: string
@@ -22,6 +22,7 @@ export class User {
     admin: boolean
     owner: boolean
     company_id: string
+    active: boolean
 
     static async new(data: UserForm) {
         const new_user = await prisma.user.create({
@@ -62,6 +63,11 @@ export class User {
         return null
     }
 
+    static async delete(user_id: string) {
+        const result = await prisma.user.delete({ where: { id: user_id } })
+        return new User(result)
+    }
+
     constructor(data: UserPrisma) {
         this.id = data.id
         this.name = data.name
@@ -70,6 +76,7 @@ export class User {
         this.admin = data.admin
         this.owner = data.owner
         this.company_id = data.company_id
+        this.active = data.active
     }
 
     load(data: UserPrisma) {
@@ -80,6 +87,7 @@ export class User {
         this.admin = data.admin
         this.owner = data.owner
         this.company_id = data.company_id
+        this.active = data.active
     }
 
     async update(data: Partial<User>) {
@@ -90,6 +98,7 @@ export class User {
                 email: data.email,
                 name: data.name,
                 password: data.password,
+                active: data.active,
             },
         })
 

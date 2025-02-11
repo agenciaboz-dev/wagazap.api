@@ -1,6 +1,7 @@
 import express, { Express, Request, Response } from "express"
 import { Company, CompanyForm } from "../../class/Company"
 import stats from "./stats"
+import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompanyId"
 
 const router = express.Router()
 
@@ -12,6 +13,18 @@ router.post("/", async (request: Request, response: Response) => {
     try {
         const result = await Company.signup(data)
         response.json(result)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.use(requireCompanyId)
+
+router.get("/users", async (request: CompanyRequest, response: Response) => {
+    try {
+        const users = await request.company?.getUsers()
+        response.json(users)
     } catch (error) {
         console.log(error)
         response.status(500).send(error)

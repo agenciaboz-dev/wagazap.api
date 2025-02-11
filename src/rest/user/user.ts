@@ -19,6 +19,39 @@ router.post("/", async (request: Request, response: Response) => {
     }
 })
 
+router.patch("/", async (request: Request, response: Response) => {
+    const data = request.body as Partial<User>
+
+    if (data.id) {
+        try {
+            const user = await User.findById(data.id)
+            await user?.update(data)
+            response.json(user)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("id attribute is required in the payload.")
+    }
+})
+
+router.delete("/", async (request: Request, response: Response) => {
+    const { user_id } = request.query
+
+    if (user_id) {
+        try {
+            const result = await User.delete(user_id as string)
+            response.json(result)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("user_id param is required")
+    }
+})
+
 router.get("/make-admin", async (request: Request, response: Response) => {
     const email = request.query.email as string | undefined
     console.log(email)
