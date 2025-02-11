@@ -27,7 +27,7 @@ router.get("/messages", async (request: Request, response: Response) => {
 router.post("/messages", async (request: Request, response: Response) => {
     try {
         const data = request.body as MessageWebhook
-        console.log(data)
+        console.log(JSON.stringify(data, null, 4))
         const businessId = data.entry[0].id
         const nagazap = await Nagazap.getByBusinessId(businessId)
         data.entry?.forEach(async (entry) => {
@@ -69,8 +69,12 @@ router.post("/messages", async (request: Request, response: Response) => {
                     const template = change.value as unknown as TemplateUpdateHook
                     console.log("template webhook")
                     console.log(template)
-                    const io = getIoInstance()
-                    io.emit("template:update", { id: template.message_template_id, status: template.event })
+                    try {
+                        const io = getIoInstance()
+                        io.emit("template:update", { id: template.message_template_id, status: template.event })
+                    } catch (error) {
+                        console.log(error)
+                    }
                 }
             })
         })
