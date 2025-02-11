@@ -11,8 +11,8 @@ import { requireNagazapId } from "../../middlewares/requireNagazapId"
 import webhook from "./webhook"
 import { TemplateForm } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import stats from "./stats"
-import { User } from "../../class/User"
 import { existsSync } from "fs"
+import { Company } from "../../class/Company"
 
 const router = express.Router()
 
@@ -28,18 +28,17 @@ router.use("/webhook", webhook)
 router.use("/stats", stats)
 
 router.get("/", async (request: Request, response: Response) => {
-    const user_id = request.query.user_id as string | undefined
+    const company_id = request.query.company_id as string | undefined
     const nagazap_id = request.query.nagazap_id as string | undefined
 
-    console.log(user_id)
-    if (user_id) {
+    console.log(company_id)
+    if (company_id) {
         if (nagazap_id) {
-            const nagazap = await Nagazap.getById(Number(nagazap_id))
+            const nagazap = await Nagazap.getById(nagazap_id)
             response.json(nagazap)
         } else {
             try {
-                const user = await User.findById(user_id)
-                const nagazaps = user?.admin ? await Nagazap.getAll() : await Nagazap.getByUserId(user_id)
+                const nagazaps = await Nagazap.getByCompanyId(company_id)
                 response.json(nagazaps)
             } catch (error) {
                 console.log(error)
@@ -47,7 +46,7 @@ router.get("/", async (request: Request, response: Response) => {
             }
         }
     } else {
-        response.status(400).send("user_id param is required")
+        response.status(400).send("company_id param is required")
     }
 })
 
@@ -70,7 +69,7 @@ router.patch("/", async (request: Request, response: Response) => {
     const data = request.body as { batchSize?: number; frequency?: string }
 
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         await nagazap.updateOvenSettings(data)
         response.json(nagazap)
     } catch (error) {
@@ -83,7 +82,7 @@ router.delete("/", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
 
     try {
-        const deleted = await Nagazap.delete(Number(nagazap_id))
+        const deleted = await Nagazap.delete(nagazap_id)
         response.json(deleted)
     } catch (error) {
         console.log(error)
@@ -94,7 +93,7 @@ router.delete("/", async (request: Request, response: Response) => {
 router.get("/info", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         const info = await nagazap.getInfo()
         if (info) {
             return response.json(info)
@@ -114,7 +113,7 @@ router.get("/info", async (request: Request, response: Response) => {
 router.get("/pause", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         await nagazap.pause()
         response.json(nagazap)
     } catch (error) {
@@ -126,7 +125,7 @@ router.get("/pause", async (request: Request, response: Response) => {
 router.get("/start", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         await nagazap.start()
         response.json(nagazap)
     } catch (error) {
@@ -138,7 +137,7 @@ router.get("/start", async (request: Request, response: Response) => {
 router.get("/clearOven", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         await nagazap.clearOven()
         response.json(nagazap)
     } catch (error) {
@@ -152,7 +151,7 @@ router.delete("/blacklist", async (request: Request, response: Response) => {
     const data = request.body as { number: string }
 
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         await nagazap.removeFromBlacklist(data.number)
         response.json(nagazap)
     } catch (error) {
@@ -166,7 +165,7 @@ router.patch("/token", async (request: Request, response: Response) => {
     const data = request.body as { token: string }
     if (data.token) {
         try {
-            const nagazap = await Nagazap.getById(Number(nagazap_id))
+            const nagazap = await Nagazap.getById(nagazap_id)
             await nagazap.updateToken(data.token)
             response.json(nagazap)
         } catch (error) {
@@ -181,7 +180,7 @@ router.patch("/token", async (request: Request, response: Response) => {
 router.get("/messages", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         const messages = await nagazap.getMessages()
         response.json(messages)
     } catch (error) {
@@ -193,7 +192,7 @@ router.get("/messages", async (request: Request, response: Response) => {
 router.get("/templates", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         const templates = await nagazap.getTemplates()
         response.json(templates)
     } catch (error) {
@@ -213,7 +212,7 @@ router.post("/template", async (request: Request, response: Response) => {
         const data = JSON.parse(request.body.data) as TemplateForm
         console.log(JSON.stringify(data, null, 4))
 
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
 
         if (request.files) {
             const file = request.files.file as UploadedFile
@@ -251,7 +250,7 @@ router.post("/template-sheet", async (request: Request, response: Response) => {
 
     if (nagazap_id) {
         try {
-            const nagazap = await Nagazap.getById(Number(nagazap_id))
+            const nagazap = await Nagazap.getById(nagazap_id)
             const path = nagazap.getTemplateSheet(template.name)
             console.log(path)
 
@@ -272,8 +271,10 @@ router.post("/template-sheet", async (request: Request, response: Response) => {
 
 router.post("/oven", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
+    const { send_now } = request.query
+
     try {
-        const nagazap = await Nagazap.getById(Number(nagazap_id))
+        const nagazap = await Nagazap.getById(nagazap_id)
         let image_id = ""
 
         const data = JSON.parse(request.body.data) as OvenForm
@@ -289,11 +290,13 @@ router.post("/oven", async (request: Request, response: Response) => {
             const uploaded = saveFile("nagazap/image", { name: file.name, file: file.data }, async () => {
                 image_id = await nagazap.uploadMedia(file, uploaded.filepath)
                 await nagazap.prepareBatch(data, image_id)
-                response.send("teste")
+                if (send_now) await nagazap.start()
+                response.status(201).send()
             })
         } else {
             await nagazap.prepareBatch(data, image_id)
-            response.send("teste")
+            if (send_now) await nagazap.start()
+            response.status(201).send()
         }
     } catch (error) {
         console.log(error)

@@ -9,7 +9,7 @@ generator client {
 }
 
 model Nagazap {
-    id          Int         @id @default(autoincrement())
+    id              String          @id @default(uuid())
     token       String      @db.Text
     lastUpdated String      
     appId       String      
@@ -28,8 +28,8 @@ model Nagazap {
     displayName String?
     displayPhone String?
 
-    userId      String
-    user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    companyId      String
+    company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model NagazapMessage {
@@ -39,7 +39,7 @@ model NagazapMessage {
     timestamp   String
     text        String      @db.LongText
     type        String      @default("text")
-    nagazap_id  Int
+    nagazap_id  String
     nagazap     Nagazap     @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }
 
@@ -51,7 +51,7 @@ model Washima {
     created_at      String
     active          Boolean             @default(true)
 
-    users           User[]
+    companies       Company[]
 
 }
 
@@ -107,12 +107,25 @@ model WashimaGroupUpdates {
 }
 
 model User {
-    id          String          @id
+    id              String          @id @default(uuid())
     name        String
     email       String          @unique
     password    String          @db.Text
-    admin       Boolean         @default(false)
 
-    washimas    Washima[]
-    nagazaps    Nagazap[]
+    admin       Boolean         @default(false)
+    owner       Boolean         @default(false)
+
+    company_id  String
+    company     Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
+}
+model Company {
+    id              String          @id @default(uuid()) 
+    full_name        String          @db.Text
+    business_name    String          @db.Text
+    document         String
+    address         Json
+
+    users            User[]
+    washimas        Washima[]
+    nagazaps        Nagazap[]
 }

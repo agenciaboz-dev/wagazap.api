@@ -11,7 +11,7 @@ router.use("/tools", tools)
 
 router.get("/", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
-    const user_id = request.query.user_id as string | undefined
+    const company_id = request.query.company_id as string | undefined
 
     if (washima_id) {
         try {
@@ -22,16 +22,9 @@ router.get("/", async (request: Request, response: Response) => {
             response.status(500).send(error)
         }
     } else {
-        if (user_id) {
-            const user = await User.findById(user_id)
-            if (user) {
-                const washimas = user.admin
-                    ? Washima.washimas
-                    : Washima.washimas.filter((washima) => washima.users.find((user) => user.id === user_id))
-                response.json(washimas)
-            } else {
-                response.status(404).send("user not found")
-            }
+        if (company_id) {
+            const washimas = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === company_id))
+            response.json(washimas)
         }
     }
 })

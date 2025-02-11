@@ -17,11 +17,12 @@ import * as csvWriter from "csv-writer"
 import { slugify } from "../tools/slugify"
 import { ObjectStringifierHeader } from "csv-writer/src/lib/record"
 import path from "path"
+import { Company } from "./Company"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
-export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ user: true })
+export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: true })
 export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
 interface BuildHeadersOptions {
     upload?: boolean
@@ -54,11 +55,11 @@ export interface NagazapForm {
     appId: string
     phoneId: string
     businessId: string
-    userId: string
+    companyId: string
 }
 
 export class Nagazap {
-    id: number
+    id: string
     token: string
     appId: string
     phoneId: string
@@ -76,8 +77,8 @@ export class Nagazap {
     displayName: string | null
     displayPhone: string | null
 
-    userId: string
-    user: User
+    companyId: string
+    company: Company
 
     static async initialize() {
         await Nagazap.shouldBake()
@@ -91,7 +92,7 @@ export class Nagazap {
                 businessId: data.businessId,
                 phoneId: data.phoneId,
                 token: data.token,
-                userId: data.userId,
+                companyId: data.companyId,
 
                 batchSize: 20,
                 frequency: "30",
@@ -131,7 +132,7 @@ export class Nagazap {
         }
     }
 
-    static async getById(id: number) {
+    static async getById(id: string) {
         const data = await prisma.nagazap.findUnique({ where: { id }, include: nagazap_include })
         if (data) {
             return new Nagazap(data)
@@ -140,8 +141,8 @@ export class Nagazap {
         }
     }
 
-    static async getByUserId(user_id: string) {
-        const data = await prisma.nagazap.findMany({ where: { userId: user_id }, include: nagazap_include })
+    static async getByCompanyId(company_id: string) {
+        const data = await prisma.nagazap.findMany({ where: { companyId: company_id }, include: nagazap_include })
         return data.map((item) => new Nagazap(item))
     }
 
@@ -170,7 +171,7 @@ export class Nagazap {
         })
     }
 
-    static async delete(id: number) {
+    static async delete(id: string) {
         const data = await prisma.nagazap.delete({ where: { id } })
         return data
     }
@@ -190,8 +191,8 @@ export class Nagazap {
         this.paused = data.paused
         this.sentMessages = JSON.parse(data.sentMessages)
         this.failedMessages = JSON.parse(data.failedMessages)
-        this.userId = data.userId
-        this.user = new User(data.user)
+        this.companyId = data.companyId
+        this.company = new Company(data.company)
         this.displayName = data.displayName
         this.displayPhone = data.displayPhone
 
@@ -426,7 +427,9 @@ export class Nagazap {
             await this.pause()
         }
 
-        this.user.notify("nagazap-batch", { title: "Nagazap: Forno", body: `${sent.length} mensagens foram enviadas.` })
+        ;(await this.company.getUsers()).forEach((user) =>
+            user.notify("nagazap-batch", { title: "Nagazap: Forno", body: `${sent.length} mensagens foram enviadas.` })
+        )
     }
 
     async pause() {
