@@ -306,6 +306,14 @@ export class Nagazap {
         return templates
     }
 
+    async getTemplate(template_id: string) {
+        const templates: TemplateInfo[] = await this.getTemplates()
+        const template = templates.find((item) => item.id === template_id)
+        if (!template) throw "template não encontrado"
+
+        return template
+    }
+
     async uploadMedia(file: UploadedFile, filepath: string) {
         const response = await api.post(
             `/${this.phoneId}/media`,
@@ -367,14 +375,16 @@ export class Nagazap {
     }
 
     async prepareBatch(data: OvenForm, image_id = "") {
+        const template = await this.getTemplate(data.template_id)
+
         console.log(JSON.stringify(data, null, 4))
         const forms: WhatsappForm[] = data.to.map((item) => {
             return {
                 number: item.telefone,
-                template: data.template!.name,
-                language: data.template!.language,
-                components: data
-                    .template!.components.filter((component) => component.format == "IMAGE" || component.example)
+                template: template.name,
+                language: template.language,
+                components: template.components
+                    .filter((component) => component.format == "IMAGE" || component.example)
                     .map((component) => {
                         const param_type = component.type === "HEADER" ? "header_text_named_params" : "body_text_named_params"
 

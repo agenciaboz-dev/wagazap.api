@@ -279,7 +279,7 @@ router.post("/oven", async (request: Request, response: Response) => {
 
         const data = JSON.parse(request.body.data) as OvenForm
         console.log(`quantidade de contatos: ${data.to.length}`)
-        if (!data.template) {
+        if (!data.template_id) {
             response.status(400).send("template is required")
             return
         }
