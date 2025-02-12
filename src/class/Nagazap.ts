@@ -302,7 +302,6 @@ export class Nagazap {
         })
 
         const templates = response.data.message_templates.data
-        console.log(templates)
         return templates
     }
 

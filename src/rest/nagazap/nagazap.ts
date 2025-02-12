@@ -277,7 +277,7 @@ router.post("/oven", async (request: Request, response: Response) => {
         const nagazap = await Nagazap.getById(nagazap_id)
         let image_id = ""
 
-        const data = JSON.parse(request.body.data) as OvenForm
+        const data: OvenForm = request.headers["content-type"]?.split(";")[0] === "multipart/form-data" ? JSON.parse(request.body.data) : request.body
         console.log(`quantidade de contatos: ${data.to.length}`)
         if (!data.template_id) {
             response.status(400).send("template is required")
