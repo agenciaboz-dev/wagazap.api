@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "../prisma"
-import axios, { AxiosError, AxiosInstance } from "axios"
+import axios, { AxiosError } from "axios"
 import { OvenForm, WhatsappApiForm, WhatsappForm, WhatsappTemplateComponent } from "../types/shared/Meta/WhatsappBusiness/WhatsappForm"
 import { UploadedFile } from "express-fileupload"
 import * as fs from "fs"
@@ -8,7 +8,6 @@ import { getIoInstance } from "../io/socket"
 import { BlacklistLog, FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappBusiness/Logs"
 import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
-import { User } from "./User"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
 import { TemplateForm, TemplateFormResponse, TemplateInfo, TemplateParam } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import { MediaResponse } from "../types/shared/Meta/WhatsappBusiness/MediaResponse"
@@ -18,12 +17,17 @@ import { slugify } from "../tools/slugify"
 import { ObjectStringifierHeader } from "csv-writer/src/lib/record"
 import path from "path"
 import { Company } from "./Company"
+import { Socket } from "socket.io"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
 export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: true })
 export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
+export interface NagazapResponseForm {
+    number: string
+    text: string
+}
 interface BuildHeadersOptions {
     upload?: boolean
 }
@@ -174,6 +178,11 @@ export class Nagazap {
     static async delete(id: string) {
         const data = await prisma.nagazap.delete({ where: { id } })
         return data
+    }
+
+    static async sendResponse(id: string, data: NagazapResponseForm, socket?: Socket) {
+        const nagazap = await Nagazap.getById(id)
+        await nagazap.sendResponse(data)
     }
 
     constructor(data: NagazapPrisma) {
@@ -545,5 +554,43 @@ export class Nagazap {
     emit() {
         const io = getIoInstance()
         io.emit(`nagazap:${this.id}:update`, this)
+    }
+
+    async sendResponse(data: NagazapResponseForm, socket?: Socket) {
+        const number = data.number.toString().replace(/\D/g, "")
+        if (this.blacklist.find((item) => item.number === (number.length == 10 ? number : number.slice(0, 2) + number.slice(3)))) {
+            console.log(`mensagem não enviada para ${number} pois está na blacklist`)
+            return
+        }
+
+        const form: WhatsappApiForm = {
+            messaging_product: "whatsapp",
+            type: "text",
+            to: "+55" + number,
+            recipient_type: "individual",
+            text: { preview_url: true, body: data.text },
+        }
+
+        const message = await this.saveMessage({
+            from: number,
+            name: this.displayPhone!,
+            text: data.text,
+            timestamp: (new Date().getTime() / 1000).toString(),
+            type: "text",
+        })
+        socket?.emit("nagazap:response", message)
+
+        try {
+            const whatsapp_response = await api.post(`/${this.phoneId}/messages`, form, { headers: this.buildHeaders() })
+            console.log(whatsapp_response.data)
+            // this.log(whatsapp_response.data)
+        } catch (error) {
+            if (error instanceof AxiosError) {
+                console.log(error.response?.data)
+                // this.errorLog(error.response?.data, number)
+            } else {
+                console.log(error)
+            }
+        }
     }
 }

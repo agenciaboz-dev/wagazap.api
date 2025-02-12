@@ -33,14 +33,20 @@ export interface WhatsappTemplateComponent {
 export interface WhatsappApiForm {
     messaging_product: "whatsapp"
     to: string
-    type: "template"
-    template: {
+    type: "template" | "text"
+    template?: {
         name: string
         language: {
             code: "en_US" | "pt_BR"
         }
         components?: WhatsappTemplateComponent[]
     }
+
+    text?: {
+        preview_url: boolean
+        body: string
+    }
+    recipient_type?: "individual"
 }
 
 export interface OvenForm {
