@@ -138,6 +138,7 @@ model NagazapLink {
         new_url         String          @id @default(uuid())
         created_at      String
         clicks          Json
+        template_name   String          @default("default")
         nagazap_id      String
         nagazap         Nagazap         @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }

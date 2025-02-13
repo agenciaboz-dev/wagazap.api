@@ -13,6 +13,7 @@ export class NagazapLink {
     created_at: string
     clicks: NagazapLinkClick[]
     nagazap_id: string
+    template_name: string
 
     static async findLink(url: string) {
         const result = await prisma.nagazapLink.findUnique({ where: { new_url: url } })
@@ -27,6 +28,7 @@ export class NagazapLink {
         this.created_at = data.created_at
         this.clicks = JSON.parse(data.clicks as string)
         this.nagazap_id = data.nagazap_id
+        this.template_name = data.template_name
 
         console.log(this)
     }
