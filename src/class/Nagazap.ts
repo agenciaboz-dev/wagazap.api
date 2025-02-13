@@ -488,7 +488,7 @@ export class Nagazap {
                     await Promise.all(
                         component.buttons.map(async (button, button_index) => {
                             if (button.url) {
-                                const link = await this.newLink(button.url)
+                                const link = await this.newLink(button.url, data.name)
                                 data.components[component_index].buttons![button_index].url = link.new_url
                             }
                         })
@@ -618,7 +618,7 @@ export class Nagazap {
         return result.map((item) => new NagazapLink(item))
     }
 
-    async newLink(url: string) {
+    async newLink(url: string, template_name?: string) {
         const existing_link = await this.findOriginalLink(url)
         if (existing_link) return existing_link
 
@@ -629,6 +629,7 @@ export class Nagazap {
                 original_url: url,
                 nagazap_id: this.id,
                 new_url: `${getLocalUrl()}/nagazap/links/${randomUUID()}`,
+                template_name,
             },
         })
 
