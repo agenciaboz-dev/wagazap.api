@@ -30,6 +30,8 @@ model Nagazap {
 
     companyId      String
     company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+    links       NagazapLink[]
 }
 
 model NagazapMessage {
@@ -129,4 +131,13 @@ model Company {
     users            User[]
     washimas        Washima[]
     nagazaps        Nagazap[]
+}
+
+model NagazapLink {
+        original_url    String          @db.Text
+        new_url         String          @id @default(uuid())
+        created_at      String
+        clicks          Json
+        nagazap_id      String
+        nagazap         Nagazap         @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }

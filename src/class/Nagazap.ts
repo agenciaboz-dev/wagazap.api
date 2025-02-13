@@ -18,6 +18,9 @@ import { ObjectStringifierHeader } from "csv-writer/src/lib/record"
 import path from "path"
 import { Company } from "./Company"
 import { Socket } from "socket.io"
+import { NagazapLink } from "./NagazapLink"
+import { getLocalUrl } from "../tools/getLocalUrl"
+import { randomUUID } from "crypto"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
@@ -479,10 +482,26 @@ export class Nagazap {
     }
 
     async createTemplate(data: TemplateForm) {
+        await Promise.all(
+            data.components.map(async (component, component_index) => {
+                if (component.buttons) {
+                    await Promise.all(
+                        component.buttons.map(async (button, button_index) => {
+                            if (button.url) {
+                                const link = await this.newLink(button.url)
+                                data.components[component_index].buttons![button_index].url = link.new_url
+                            }
+                        })
+                    )
+                }
+            })
+        )
+
         const response = await api.post(`/${this.businessId}/message_templates`, data, {
             headers: this.buildHeaders(),
         })
         const result = response.data as TemplateFormResponse
+
         return result
     }
 
@@ -592,5 +611,32 @@ export class Nagazap {
                 console.log(error)
             }
         }
+    }
+
+    async getLinks() {
+        const result = await prisma.nagazapLink.findMany({ where: { nagazap_id: this.id } })
+        return result.map((item) => new NagazapLink(item))
+    }
+
+    async newLink(url: string) {
+        const existing_link = await this.findOriginalLink(url)
+        if (existing_link) return existing_link
+
+        const result = await prisma.nagazapLink.create({
+            data: {
+                clicks: JSON.stringify([]),
+                created_at: new Date().getTime().toString(),
+                original_url: url,
+                nagazap_id: this.id,
+                new_url: `${getLocalUrl()}/nagazap/links/${randomUUID()}`,
+            },
+        })
+
+        return new NagazapLink(result)
+    }
+
+    async findOriginalLink(url: string) {
+        const result = await prisma.nagazapLink.findFirst({ where: { original_url: url, nagazap_id: this.id } })
+        if (result) return new NagazapLink(result)
     }
 }
