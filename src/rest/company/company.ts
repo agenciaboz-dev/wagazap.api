@@ -2,10 +2,12 @@ import express, { Express, Request, Response } from "express"
 import { Company, CompanyForm } from "../../class/Company"
 import stats from "./stats"
 import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompanyId"
+import bots from "./bots"
 
 const router = express.Router()
 
 router.use("/stats", stats)
+router.use("/bots", bots)
 
 router.post("/", async (request: Request, response: Response) => {
     const data = request.body as CompanyForm

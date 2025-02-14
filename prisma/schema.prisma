@@ -32,6 +32,7 @@ model Nagazap {
     company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
     links       NagazapLink[]
+    bots        Bot[]
 }
 
 model NagazapMessage {
@@ -54,6 +55,7 @@ model Washima {
     active          Boolean             @default(true)
 
     companies       Company[]
+    bots            Bot[]
 
 }
 
@@ -131,6 +133,7 @@ model Company {
     users            User[]
     washimas        Washima[]
     nagazaps        Nagazap[]
+    bots            Bot[]
 }
 
 model NagazapLink {
@@ -141,4 +144,21 @@ model NagazapLink {
         template_name   String          @default("default")
         nagazap_id      String
         nagazap         Nagazap         @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
+}
+
+model Bot {
+    id              String          @id @default(uuid())
+    name            String
+    created_at      String
+    trigger         String
+    triggered       Int
+
+    flow            Json
+    active_on       Json
+
+    company_id      String
+    company         Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+    washimas        Washima[]
+    nagazaps        Nagazap[]
 }

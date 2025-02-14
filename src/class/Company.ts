@@ -6,6 +6,7 @@ import numeral from "numeral"
 import { Nagazap, nagazap_include } from "./Nagazap"
 import { WithoutFunctions } from "./helpers"
 import { Address } from "./Address"
+import { Bot, bot_include, BotForm } from "./Bot/Bot"
 
 // export const company_include = Prisma.validator<Prisma.CompanyInclude>()({users: true})
 export type CompanyPrisma = Prisma.CompanyGetPayload<{}>
@@ -144,5 +145,15 @@ export class Company {
         const nagazaps = await this.getNagazaps()
         const count = nagazaps.reduce((total, nagazap) => nagazap.blacklist.length + total, 0)
         return count
+    }
+
+    async getBots() {
+        const bots = await prisma.bot.findMany({ where: { company_id: this.id }, include: bot_include })
+        return bots.map((item) => new Bot(item))
+    }
+
+    async createBot(data: BotForm) {
+        const bot = await Bot.new(data)
+        return bot
     }
 }
