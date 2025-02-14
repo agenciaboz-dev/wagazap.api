@@ -368,6 +368,9 @@ export class Washima {
 
             this.client.on("message_create", async (message) => {
                 try {
+                    // ignore status updates
+                    if (message.id.remote === "status@broadcast") return
+
                     const io = getIoInstance()
                     const chat = await message.getChat()
 
