@@ -7,9 +7,16 @@ const router = express.Router()
 router.use(requireCompanyId)
 
 router.get("/", async (request: CompanyRequest, response: Response) => {
+    const { bot_id } = request.query
+
     try {
-        const bots = await request.company!.getBots()
-        response.json(bots)
+        if (bot_id) {
+            const bot = await Bot.getById(bot_id as string)
+            response.json(bot)
+        } else {
+            const bots = await request.company!.getBots()
+            response.json(bots)
+        }
     } catch (error) {
         console.log(error)
         response.status(500).send(error)
@@ -41,10 +48,21 @@ router.get("/channels", async (request: BotRequest, response: Response) => {
 
 router.patch("/", async (request: BotRequest, response: Response) => {
     const data = request.body as Partial<Bot>
+    console.log(data)
 
     try {
         await request.bot!.update(data)
         response.json(request.bot)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.delete("/", async (request: BotRequest, response: Response) => {
+    try {
+        await request.bot!.delete()
+        response.status(201).send()
     } catch (error) {
         console.log(error)
         response.status(500).send(error)

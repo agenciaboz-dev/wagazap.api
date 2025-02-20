@@ -153,7 +153,7 @@ model Bot {
     trigger         String
     triggered       Int
 
-    flow            Json
+    instance        Json
     active_on       Json
 
     company_id      String

@@ -3,6 +3,7 @@ import { WithoutFunctions } from "../helpers"
 import { prisma } from "../../prisma"
 import { now } from "lodash"
 import { Washima } from "../Washima/Washima"
+import { Edge, Node, ReactFlowInstance, ReactFlowJsonObject } from "@xyflow/react"
 
 export const bot_include = Prisma.validator<Prisma.BotInclude>()({ washimas: { select: { id: true } }, nagazaps: { select: { id: true } } })
 type BotPrisma = Prisma.BotGetPayload<{ include: typeof bot_include }>
@@ -14,6 +15,7 @@ export interface FlowResponse {
 
 export interface FlowObject {
     type: "message" | "response"
+    position: number[]
     message?: string
     response?: FlowResponse[]
 }
@@ -28,7 +30,7 @@ export interface ActiveBot {
     washima_is?: string
 }
 
-export type BotForm = Omit<WithoutFunctions<Bot>, "id" | "created_at" | "triggered" | "flow" | "active_on">
+export type BotForm = Omit<WithoutFunctions<Bot>, "id" | "created_at" | "triggered" | "instance" | "active_on">
 
 export class Bot {
     id: string
@@ -36,7 +38,7 @@ export class Bot {
     created_at: string
     trigger: string
     triggered: number
-    flow: FlowObject[]
+    instance: ReactFlowJsonObject<Node, Edge>
     active_on: ActiveBot[]
     company_id: string
     nagazap_ids: string[]
@@ -47,7 +49,7 @@ export class Bot {
             data: {
                 active_on: JSON.stringify([]),
                 created_at: now().toString(),
-                flow: JSON.stringify([]),
+                instance: JSON.stringify(null),
                 name: data.name,
                 trigger: data.trigger,
                 triggered: 0,
@@ -74,11 +76,13 @@ export class Bot {
         this.created_at = data.created_at
         this.trigger = data.trigger
         this.triggered = data.triggered
-        this.flow = JSON.parse(data.flow as string)
+        this.instance = JSON.parse(data.instance as string)
         this.active_on = JSON.parse(data.active_on as string)
         this.company_id = data.company_id
         this.washima_ids = data.washimas.map((item) => item.id)
         this.nagazap_ids = data.nagazaps.map((item) => item.id)
+
+        // console.log(this)
     }
 
     load(data: BotPrisma) {
@@ -87,7 +91,7 @@ export class Bot {
         this.created_at = data.created_at
         this.trigger = data.trigger
         this.triggered = data.triggered
-        this.flow = JSON.parse(data.flow as string)
+        this.instance = JSON.parse(data.instance as string)
         this.active_on = JSON.parse(data.active_on as string)
         this.company_id = data.company_id
         this.washima_ids = data.washimas.map((item) => item.id)
@@ -102,6 +106,7 @@ export class Bot {
                 trigger: data.trigger,
                 nagazaps: data.nagazap_ids ? { set: [], connect: data.nagazap_ids.map((id) => ({ id })) } : undefined,
                 washimas: data.washima_ids ? { set: [], connect: data.washima_ids.map((id) => ({ id })) } : undefined,
+                instance: JSON.stringify(data.instance),
             },
             include: bot_include,
         })
@@ -111,5 +116,9 @@ export class Bot {
 
     async getChannels() {
         // const washimas = Washima.washimas.filter()
+    }
+
+    async delete() {
+        await prisma.bot.delete({where: {id: this.id}})
     }
 }
