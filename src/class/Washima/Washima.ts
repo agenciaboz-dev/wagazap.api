@@ -16,6 +16,7 @@ import { deleteDirectory } from "../../tools/deleteDirectory"
 import Fuse from "fuse.js"
 import numeral from "numeral"
 import { Company } from "../Company"
+import { Bot } from "../Bot/Bot"
 // import numeral from 'numeral'
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
@@ -401,6 +402,13 @@ export class Washima {
                     io.emit("washima:message", { chat, message: washima_message }, this.id)
                     io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
                     io.emit("washima:update", this)
+
+                    if (!message.fromMe && !chat.isGroup) {
+                        const bots = await Bot.getByWashima(this.id)
+                        bots.forEach((bot) => {
+                            bot.handleIncomingMessage(message.body, chat.id._serialized, (text) => this.sendMessage(chat.id._serialized, text), bots.filter(item => item.id !== bot.id))
+                        })
+                    }
                 } catch (error) {
                     console.log({ error })
                 }
