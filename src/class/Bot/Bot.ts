@@ -4,6 +4,7 @@ import { prisma } from "../../prisma"
 import { now } from "lodash"
 import { Washima } from "../Washima/Washima"
 import { Edge, Node, ReactFlowInstance, ReactFlowJsonObject } from "@xyflow/react"
+import Fuse from "fuse.js"
 
 export const bot_include = Prisma.validator<Prisma.BotInclude>()({ washimas: { select: { id: true } }, nagazaps: { select: { id: true } } })
 type BotPrisma = Prisma.BotGetPayload<{ include: typeof bot_include }>
@@ -143,16 +144,16 @@ export class Bot {
     async handleIncomingMessage(message: string, chat_id: string, response: (text: string) => Promise<void>, other_bots: Bot[]) {
         if (other_bots.some((bot) => bot.getActiveChat(chat_id))) return
 
-        message = this.normalize(message)
+        // message = this.normalize(message)
 
-        let current_chat = this.getActiveChat(chat_id, message)
+        let current_chat = this.getActiveChat(chat_id)
 
-        if (!current_chat && message === this.normalize(this.trigger)) {
+        if (!current_chat && !!this.compareIncomingMessage(message)) {
             current_chat = this.newChat(chat_id)
         }
 
         if (current_chat) {
-            if (message === "reset") {
+            if (this.compareIncomingMessage(message, "reset")) {
                 this.closeChat(current_chat.chat_id)
                 await response("bot reiniciado")
                 return
@@ -171,7 +172,7 @@ export class Bot {
 
         console.log({ chat })
         if (incoming_message && chat) {
-            if (incoming_message === "reset") {
+            if (this.compareIncomingMessage(incoming_message, "reset")) {
                 return chat
             }
             if (this.getAnsweredNode(chat.current_node_id, incoming_message)) {
@@ -229,9 +230,7 @@ export class Bot {
 
     getAnsweredNode(node_id: string, incoming_message: string) {
         const children = this.getNodeChildren(node_id)
-        const response_node = children.find(
-            (item) => item.type === "response" && this.normalize(item.data.value) === this.normalize(incoming_message)
-        )
+        const response_node = children.find((item) => item.type === "response" && !!this.compareIncomingMessage(incoming_message, item.data.value))
         return response_node
     }
 
@@ -269,6 +268,9 @@ export class Bot {
 
             this.save()
             return messages
+        } else {
+            const options = this.getNodeChildren(chat.current_node_id).map((node) => node.data.value)
+            return [`Não entendi. As opções são:\n* ${options.join("\n* ")}`]
         }
     }
 
@@ -293,5 +295,21 @@ export class Bot {
             .toLowerCase()
             .replace(/[^a-z0-9 -]/g, "") // Remover caracteres que não são letras, números, espaços ou hífens.
             .trim()
+    }
+
+    compareIncomingMessage(message: string, trigger = this.trigger) {
+        const triggers = [this.normalize(trigger)]
+        const fuse = new Fuse(triggers, {
+            includeScore: true,
+            threshold: 0.3, // Lower threshold for closer matches
+            ignoreLocation: true, // Ignores the location of the match which allows for more general matching
+            minMatchCharLength: 2, // Minimum character length of matches to consider
+        })
+
+        const result = fuse.search(this.normalize(message)).map((item) => item.item)
+        console.log(result)
+        if (result.length > 0) {
+            return result[0]
+        }
     }
 }
