@@ -185,6 +185,8 @@ export class Bot {
     }
 
     newChat(chat_id: string) {
+        if (this.getActiveChat(chat_id)) return
+
         const chat = new ActiveBot({
             chat_id,
             current_node_id: this.instance.nodes[0].id,
