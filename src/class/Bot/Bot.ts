@@ -59,8 +59,9 @@ export class Bot {
     company_id: string
     nagazap_ids: string[]
     washima_ids: string[]
+    expiry_minutes: number
+    fuzzy_threshold: number
 
-    static expiry_minutes = 30
     static pending_response = new Map<string, PendingResponse>()
     static expiry_interval = setInterval(() => Bot.checkForExpiredChats(), 1000 * 10)
 
@@ -76,6 +77,8 @@ export class Bot {
                 company_id: data.company_id,
                 nagazaps: { connect: data.nagazap_ids.map((id) => ({ id })) },
                 washimas: { connect: data.washima_ids.map((id) => ({ id })) },
+                expiry_minutes: data.expiry_minutes,
+                fuzzy_threshold: data.fuzzy_threshold,
             },
             include: bot_include,
         })
@@ -121,6 +124,8 @@ export class Bot {
         this.company_id = data.company_id
         this.washima_ids = data.washimas.map((item) => item.id)
         this.nagazap_ids = data.nagazaps.map((item) => item.id)
+        this.expiry_minutes = data.expiry_minutes
+        this.fuzzy_threshold = data.fuzzy_threshold
 
         // console.log(this)
     }
@@ -136,6 +141,8 @@ export class Bot {
         this.company_id = data.company_id
         this.washima_ids = data.washimas.map((item) => item.id)
         this.nagazap_ids = data.nagazaps.map((item) => item.id)
+        this.expiry_minutes = data.expiry_minutes
+        this.fuzzy_threshold = data.fuzzy_threshold
     }
 
     async update(data: Partial<Bot>) {
@@ -147,6 +154,8 @@ export class Bot {
                 nagazaps: data.nagazap_ids ? { set: [], connect: data.nagazap_ids.map((id) => ({ id })) } : undefined,
                 washimas: data.washima_ids ? { set: [], connect: data.washima_ids.map((id) => ({ id })) } : undefined,
                 instance: JSON.stringify(data.instance),
+                expiry_minutes: data.expiry_minutes,
+                fuzzy_threshold: data.fuzzy_threshold,
             },
             include: bot_include,
         })
@@ -189,7 +198,7 @@ export class Bot {
                 Bot.pending_response.set(current_chat.chat_id, {
                     chat_id: current_chat.chat_id,
                     response: response,
-                    timestamp: now() + 1000 * 60 * Bot.expiry_minutes,
+                    timestamp: now() + 1000 * 60 * this.expiry_minutes,
                     bot: this,
                 })
             }
@@ -330,7 +339,7 @@ export class Bot {
         const triggers = [this.normalize(trigger)]
         const fuse = new Fuse(triggers, {
             includeScore: true,
-            threshold: 0.3, // Lower threshold for closer matches
+            threshold: this.fuzzy_threshold, // Lower threshold for closer matches
             ignoreLocation: true, // Ignores the location of the match which allows for more general matching
             minMatchCharLength: 2, // Minimum character length of matches to consider
         })

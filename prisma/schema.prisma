@@ -152,6 +152,8 @@ model Bot {
     created_at      String
     trigger         String
     triggered       Int
+    expiry_minutes  Int             @default(30)
+    fuzzy_threshold Float           @default(0.1)
 
     instance        Json
     active_on       Json

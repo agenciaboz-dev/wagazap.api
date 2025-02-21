@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `Bot` ADD COLUMN `expiry_minutes` INTEGER NOT NULL DEFAULT 30,
+    ADD COLUMN `fuzzy_threshold` DOUBLE NOT NULL DEFAULT 0.1;
