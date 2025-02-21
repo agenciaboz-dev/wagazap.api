@@ -41,6 +41,13 @@ export class ActiveBot {
 
 export type BotForm = Omit<WithoutFunctions<Bot>, "id" | "created_at" | "triggered" | "instance" | "active_on">
 
+export interface PendingResponse {
+    response: (text: string) => Promise<void>
+    timestamp: number
+    chat_id: string
+    bot: Bot
+}
+
 export class Bot {
     id: string
     name: string
@@ -52,6 +59,10 @@ export class Bot {
     company_id: string
     nagazap_ids: string[]
     washima_ids: string[]
+
+    static expiry_minutes = 30
+    static pending_response = new Map<string, PendingResponse>()
+    static expiry_interval = setInterval(() => Bot.checkForExpiredChats(), 1000 * 10)
 
     static async new(data: BotForm) {
         const result = await prisma.bot.create({
@@ -87,6 +98,16 @@ export class Bot {
     static async getByNagazap(nagazap_id: string) {
         const result = await prisma.bot.findMany({ where: { nagazaps: { some: { id: nagazap_id } } }, include: bot_include })
         return result.map((item) => new Bot(item))
+    }
+
+    static async checkForExpiredChats() {
+        Bot.pending_response.forEach((item, key) => {
+            if (now() >= item.timestamp) {
+                item.response("Esta conversa expirou. Quando quiser, comece de novo.")
+                item.bot.closeChat(key)
+                Bot.pending_response.delete(key)
+            }
+        })
     }
 
     constructor(data: BotPrisma) {
@@ -158,10 +179,18 @@ export class Bot {
                 await response("bot reiniciado")
                 return
             }
+
             const bot_responses = this.advanceChat(current_chat, message)
             if (bot_responses) {
                 bot_responses.forEach((bot_message, index) => {
                     setTimeout(() => response(bot_message), index * 1000)
+                })
+
+                Bot.pending_response.set(current_chat.chat_id, {
+                    chat_id: current_chat.chat_id,
+                    response: response,
+                    timestamp: now() + 1000 * 60 * Bot.expiry_minutes,
+                    bot: this,
                 })
             }
         }
@@ -307,9 +336,9 @@ export class Bot {
         })
 
         const result = fuse.search(this.normalize(message)).map((item) => item.item)
-        console.log(result)
         if (result.length > 0) {
             return result[0]
         }
     }
 }
+
