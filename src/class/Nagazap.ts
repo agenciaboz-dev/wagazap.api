@@ -21,6 +21,7 @@ import { Socket } from "socket.io"
 import { NagazapLink } from "./NagazapLink"
 import { getLocalUrl } from "../tools/getLocalUrl"
 import { randomUUID } from "crypto"
+import { Bot } from "./Bot/Bot"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
@@ -289,6 +290,19 @@ export class Nagazap {
         if (message.text.toLowerCase() == "parar promoções") {
             this.addToBlacklist(message.from)
         }
+
+        if (message.name !== this.displayPhone) {
+            const bots = await Bot.getByNagazap(this.id)
+            bots.forEach((bot) => {
+                bot.handleIncomingMessage(
+                    message.text,
+                    message.from,
+                    (text) => this.sendResponse({ number: message.from, text }),
+                    bots.filter((item) => item.id !== bot.id)
+                )
+            })
+        }
+
         return message
     }
 
