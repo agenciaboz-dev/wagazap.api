@@ -292,6 +292,7 @@ export class Nagazap {
         }
 
         if (message.name !== this.displayPhone) {
+            console.log(message.from)
             const bots = await Bot.getByNagazap(this.id)
             bots.forEach((bot) => {
                 bot.handleIncomingMessage(
