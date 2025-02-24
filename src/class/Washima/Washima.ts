@@ -281,7 +281,7 @@ export class Washima {
                 }
 
                 this.qrcode = qr
-                console.log("whatsapp is disconnected. QrCode ready: " + this.qrcode)
+                // console.log("whatsapp is disconnected. QrCode ready: " + this.qrcode)
                 // qrcode.generate(qr, { small: true })
 
                 const io = getIoInstance()
