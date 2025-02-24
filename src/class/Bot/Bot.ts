@@ -336,6 +336,12 @@ export class Bot {
     }
 
     compareIncomingMessage(message: string, trigger = this.trigger) {
+        if (this.fuzzy_threshold === 0) {
+            if (trigger === message) return trigger
+
+            return
+        }
+
         const triggers = [this.normalize(trigger)]
         const fuse = new Fuse(triggers, {
             includeScore: true,
