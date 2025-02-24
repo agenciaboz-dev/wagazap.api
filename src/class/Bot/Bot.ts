@@ -108,7 +108,6 @@ export class Bot {
             if (now() >= item.timestamp) {
                 item.response("Esta conversa expirou. Quando quiser, comece de novo.")
                 item.bot.closeChat(key)
-                Bot.pending_response.delete(key)
             }
         })
     }
@@ -324,6 +323,7 @@ export class Bot {
     closeChat(chat_id: string) {
         this.active_on = this.active_on.filter((item) => item.chat_id !== chat_id)
         this.save()
+        Bot.pending_response.delete(chat_id)
     }
 
     normalize(text: string) {
