@@ -7,12 +7,14 @@ import { Nagazap, NagazapForm } from "../../class/Nagazap"
 import { UploadedFile } from "express-fileupload"
 import { saveFile } from "../../tools/saveFile"
 import { HandledError } from "../../class/HandledError"
-import { requireNagazapId } from "../../middlewares/requireNagazapId"
+import { NagazapRequest, requireNagazapId } from "../../middlewares/requireNagazapId"
 import webhook from "./webhook"
 import { TemplateForm } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import stats from "./stats"
 import links from "./links"
 import { existsSync } from "fs"
+import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
+import { Log } from "../../class/Log"
 
 const router = express.Router()
 
@@ -51,46 +53,6 @@ router.get("/", async (request: Request, response: Response) => {
     }
 })
 
-router.post("/", async (request: Request, response: Response) => {
-    const data = request.body as NagazapForm
-
-    try {
-        const nagazap = await Nagazap.new(data)
-        response.json(nagazap)
-    } catch (error) {
-        console.log(error)
-        response.status(error instanceof HandledError ? 400 : 500).send(error)
-    }
-})
-
-router.use(requireNagazapId) // require the "nagazap_id" param for all routes bellow
-
-router.patch("/", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
-    const data = request.body as { batchSize?: number; frequency?: string }
-
-    try {
-        const nagazap = await Nagazap.getById(nagazap_id)
-        await nagazap.updateOvenSettings(data)
-        response.json(nagazap)
-    } catch (error) {
-        console.log(error)
-        response.status(500).send(error)
-    }
-})
-
-router.delete("/", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
-
-    try {
-        const deleted = await Nagazap.delete(nagazap_id)
-        response.json(deleted)
-    } catch (error) {
-        console.log(error)
-        response.status(500).send(error)
-    }
-})
-
 router.get("/info", async (request: Request, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string
     try {
@@ -111,11 +73,72 @@ router.get("/info", async (request: Request, response: Response) => {
     }
 })
 
-router.get("/pause", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.use(requireUserId)
+
+router.post("/", async (request: UserRequest, response: Response) => {
+    const data = request.body as NagazapForm
+
     try {
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = await Nagazap.new(data)
+        Log.new({
+            company_id: data.companyId,
+            user_id: request.user!.id,
+            text: `cadastrou a conta ${nagazap.displayName} - ${nagazap.displayPhone} no Broadcast`,
+            color: "success",
+        })
+        response.json(nagazap)
+    } catch (error) {
+        console.log(error)
+        response.status(error instanceof HandledError ? 400 : 500).send(error)
+    }
+})
+
+router.use(requireNagazapId) // require the "nagazap_id" param for all routes bellow
+
+router.patch("/", async (request: NagazapRequest & UserRequest, response: Response) => {
+    const data = request.body as { batchSize?: number; frequency?: string }
+
+    try {
+        await request.nagazap!.updateOvenSettings(data)
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `editou configurações de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "info",
+        })
+        response.json(request.nagazap)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.delete("/", async (request: NagazapRequest & UserRequest, response: Response) => {
+    try {
+        const deleted = await Nagazap.delete(request.nagazap!.id)
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `deletou ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "error",
+        })
+        response.json(deleted)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.get("/pause", async (request: NagazapRequest & UserRequest, response: Response) => {
+    try {
+        const nagazap = request.nagazap!
         await nagazap.pause()
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `pausou o forno da conta ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "info",
+        })
         response.json(nagazap)
     } catch (error) {
         console.log(error)
@@ -123,11 +146,16 @@ router.get("/pause", async (request: Request, response: Response) => {
     }
 })
 
-router.get("/start", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.get("/start", async (request: NagazapRequest & UserRequest, response: Response) => {
     try {
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = request.nagazap!
         await nagazap.start()
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `ligou o forno da conta ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "info",
+        })
         response.json(nagazap)
     } catch (error) {
         console.log(error)
@@ -135,11 +163,16 @@ router.get("/start", async (request: Request, response: Response) => {
     }
 })
 
-router.get("/clearOven", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.get("/clearOven", async (request: NagazapRequest & UserRequest, response: Response) => {
     try {
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = request.nagazap!
         await nagazap.clearOven()
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `limpou o forno da conta ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "warning",
+        })
         response.json(nagazap)
     } catch (error) {
         console.log(error)
@@ -147,13 +180,18 @@ router.get("/clearOven", async (request: Request, response: Response) => {
     }
 })
 
-router.delete("/blacklist", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.delete("/blacklist", async (request: NagazapRequest & UserRequest, response: Response) => {
     const data = request.body as { number: string }
 
     try {
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = request.nagazap!
         await nagazap.removeFromBlacklist(data.number)
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `removeu o número ${data.number} da lista negra de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "warning",
+        })
         response.json(nagazap)
     } catch (error) {
         console.log(error)
@@ -161,13 +199,18 @@ router.delete("/blacklist", async (request: Request, response: Response) => {
     }
 })
 
-router.patch("/token", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.patch("/token", async (request: NagazapRequest & UserRequest, response: Response) => {
     const data = request.body as { token: string }
     if (data.token) {
         try {
-            const nagazap = await Nagazap.getById(nagazap_id)
+            const nagazap = request.nagazap!
             await nagazap.updateToken(data.token)
+            Log.new({
+                company_id: request.nagazap!.companyId,
+                user_id: request.user!.id,
+                text: `alterou o Token de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+                color: "warning",
+            })
             response.json(nagazap)
         } catch (error) {
             console.log(error)
@@ -178,10 +221,9 @@ router.patch("/token", async (request: Request, response: Response) => {
     }
 })
 
-router.get("/messages", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.get("/messages", async (request: NagazapRequest & UserRequest, response: Response) => {
     try {
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = request.nagazap!
         const messages = await nagazap.getMessages()
         response.json(messages)
     } catch (error) {
@@ -190,10 +232,9 @@ router.get("/messages", async (request: Request, response: Response) => {
     }
 })
 
-router.get("/templates", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.get("/templates", async (request: NagazapRequest & UserRequest, response: Response) => {
     try {
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = request.nagazap!
         const templates = await nagazap.getTemplates()
         response.json(templates)
     } catch (error) {
@@ -206,14 +247,12 @@ router.get("/templates", async (request: Request, response: Response) => {
     }
 })
 
-router.post("/template", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
-
+router.post("/template", async (request: NagazapRequest & UserRequest, response: Response) => {
     try {
         const data = JSON.parse(request.body.data) as TemplateForm
         console.log(JSON.stringify(data, null, 4))
 
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = request.nagazap!
 
         if (request.files) {
             const file = request.files.file as UploadedFile
@@ -228,6 +267,12 @@ router.post("/template", async (request: Request, response: Response) => {
 
         const template_response = await nagazap.createTemplate(data)
         const csv_model = await nagazap.exportTemplateModel(data)
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `criou um Template em ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "success",
+        })
         response.json({ template_response, csv_model })
     } catch (error) {
         if (error instanceof AxiosError && error.response?.status === 400) {
@@ -245,13 +290,13 @@ router.post("/template", async (request: Request, response: Response) => {
     }
 })
 
-router.post("/template-sheet", async (request: Request, response: Response) => {
+router.post("/template-sheet", async (request: NagazapRequest & UserRequest, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string | undefined
     const template = request.body as TemplateForm
 
     if (nagazap_id) {
         try {
-            const nagazap = await Nagazap.getById(nagazap_id)
+            const nagazap = request.nagazap!
             const path = nagazap.getTemplateSheet(template.name)
             console.log(path)
 
@@ -270,12 +315,11 @@ router.post("/template-sheet", async (request: Request, response: Response) => {
     }
 })
 
-router.post("/oven", async (request: Request, response: Response) => {
-    const nagazap_id = request.query.nagazap_id as string
+router.post("/oven", async (request: NagazapRequest & UserRequest, response: Response) => {
     const { send_now } = request.query
 
     try {
-        const nagazap = await Nagazap.getById(nagazap_id)
+        const nagazap = request.nagazap!
         let image_id = ""
 
         const data: OvenForm = request.headers["content-type"]?.split(";")[0] === "multipart/form-data" ? JSON.parse(request.body.data) : request.body
@@ -292,13 +336,20 @@ router.post("/oven", async (request: Request, response: Response) => {
                 image_id = await nagazap.uploadMedia(file, uploaded.filepath)
                 await nagazap.prepareBatch(data, image_id)
                 if (send_now) await nagazap.start()
-                response.status(201).send()
             })
         } else {
             await nagazap.prepareBatch(data, image_id)
             if (send_now) await nagazap.start()
-            response.status(201).send()
         }
+
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `adicionou ${data.to.length} números no forno de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "warning",
+        })
+
+        response.status(201).send()
     } catch (error) {
         console.log(error)
         if (error instanceof AxiosError) {

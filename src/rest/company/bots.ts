@@ -2,6 +2,8 @@ import express, { Express, Request, Response } from "express"
 import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompanyId"
 import { Bot, BotForm } from "../../class/Bot/Bot"
 import { BotRequest, requireBotId } from "../../middlewares/requireBotId"
+import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
+import { Log } from "../../class/Log"
 
 const router = express.Router()
 router.use(requireCompanyId)
@@ -23,11 +25,15 @@ router.get("/", async (request: CompanyRequest, response: Response) => {
     }
 })
 
-router.post("/", async (request: CompanyRequest, response: Response) => {
+router.use(requireUserId)
+
+router.post("/", async (request: CompanyRequest & UserRequest, response: Response) => {
     const data = request.body as BotForm
 
     try {
         const bot = await request.company!.createBot(data)
+        Log.new({ company_id: data.company_id, user_id: request.user!.id, color: "success", text: `criou o chatbot ${bot.name}` })
+
         response.json(bot)
     } catch (error) {
         console.log(error)
@@ -37,7 +43,7 @@ router.post("/", async (request: CompanyRequest, response: Response) => {
 
 router.use(requireBotId)
 
-router.get("/channels", async (request: BotRequest, response: Response) => {
+router.get("/channels", async (request: BotRequest & UserRequest, response: Response) => {
     try {
         const channels = await request.bot!.getChannels()
     } catch (error) {
@@ -46,12 +52,14 @@ router.get("/channels", async (request: BotRequest, response: Response) => {
     }
 })
 
-router.patch("/", async (request: BotRequest, response: Response) => {
+router.patch("/", async (request: BotRequest & UserRequest, response: Response) => {
     const data = request.body as Partial<Bot>
     console.log(data)
 
     try {
-        await request.bot!.update(data)
+        const bot = request.bot!
+        await bot.update(data)
+        Log.new({ company_id: bot.company_id, user_id: request.user!.id, color: "info", text: `editou o chatbot ${bot.name}` })
         response.json(request.bot)
     } catch (error) {
         console.log(error)
@@ -59,9 +67,11 @@ router.patch("/", async (request: BotRequest, response: Response) => {
     }
 })
 
-router.delete("/", async (request: BotRequest, response: Response) => {
+router.delete("/", async (request: BotRequest & UserRequest, response: Response) => {
     try {
-        await request.bot!.delete()
+        const bot = request.bot!
+        await bot.delete()
+        Log.new({ company_id: bot.company_id, user_id: request.user!.id, color: "error", text: `deletou o chatbot ${bot.name}` })
         response.status(201).send()
     } catch (error) {
         console.log(error)

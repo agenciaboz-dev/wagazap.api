@@ -7,6 +7,7 @@ import { Nagazap, nagazap_include } from "./Nagazap"
 import { WithoutFunctions } from "./helpers"
 import { Address } from "./Address"
 import { Bot, bot_include, BotForm } from "./Bot/Bot"
+import { Log, log_include } from "./Log"
 
 // export const company_include = Prisma.validator<Prisma.CompanyInclude>()({users: true})
 export type CompanyPrisma = Prisma.CompanyGetPayload<{}>
@@ -155,5 +156,10 @@ export class Company {
     async createBot(data: BotForm) {
         const bot = await Bot.new(data)
         return bot
+    }
+
+    async getLogs() {
+        const result = await prisma.log.findMany({ where: { company_id: this.id }, include: log_include })
+        return result.map((item) => new Log(item))
     }
 }

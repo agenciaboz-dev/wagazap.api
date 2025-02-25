@@ -4,6 +4,8 @@ import { prisma } from "../../prisma"
 import { getIoInstance } from "../../io/socket"
 import tools from "./tools"
 import { User } from "../../class/User"
+import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
+import { Log } from "../../class/Log"
 
 const router = express.Router()
 
@@ -26,51 +28,6 @@ router.get("/", async (request: Request, response: Response) => {
             const washimas = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === company_id))
             response.json(washimas)
         }
-    }
-})
-
-router.post("/", async (request: Request, response: Response) => {
-    const data = request.body as WashimaForm
-
-    try {
-        const washima = await Washima.new(data)
-        response.json(washima)
-
-        const io = getIoInstance()
-        io.emit("washima:update", washima)
-
-        await washima.initialize()
-        await washima.fetchAndSaveAllMessages()
-    } catch (error) {
-        console.log(error)
-        response.status(500).send(error)
-    }
-})
-
-router.patch("/", async (request: Request, response: Response) => {
-    const data = request.body as Partial<Washima> & { id: string }
-
-    try {
-        const washima = Washima.find(data.id)
-        await washima?.update(data)
-        response.json(washima)
-    } catch (error) {
-        console.log(error)
-        response.status(500).send(error)
-    }
-})
-
-router.delete("/", async (request: Request, response: Response) => {
-    const data = request.body as { washima_id: string }
-
-    try {
-        const deleted = await Washima.delete(data.washima_id)
-        response.json(deleted)
-        const io = getIoInstance()
-        io.emit("washima:delete", deleted)
-    } catch (error) {
-        console.log(error)
-        response.status(500).send(error)
     }
 })
 
@@ -182,37 +139,6 @@ router.get("/media-metadata", async (request: Request, response: Response) => {
     }
 })
 
-router.post("/restart", async (request: Request, response: Response) => {
-    const data = request.body as { washima_id: string }
-
-    try {
-        const washima = Washima.find(data.washima_id)
-        await washima?.restart()
-        response.json(washima)
-    } catch (error) {
-        console.log(error)
-        response.status(500).send(error)
-    }
-})
-
-router.post("/fetch-messages-whatsappweb", async (request: Request, response: Response) => {
-    const data = request.body as { id: string; options?: { groupOnly?: boolean } }
-
-    try {
-        const washima = Washima.find(data.id)
-        if (washima) {
-            const messages = await washima.fetchAndSaveAllMessages(data.options)
-            response.json(messages)
-            return
-        }
-
-        response.send(null)
-    } catch (error) {
-        console.log(error)
-        response.status(500).send(error)
-    }
-})
-
 router.get("/search", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
     const search = request.query.search as string | undefined
@@ -232,5 +158,118 @@ router.get("/search", async (request: Request, response: Response) => {
         response.status(400).send("washima_id param is required")
     }
 })
+
+router.post("/fetch-messages-whatsappweb", async (request: UserRequest, response: Response) => {
+    const data = request.body as { id: string; options?: { groupOnly?: boolean } }
+
+    try {
+        const washima = Washima.find(data.id)
+        if (washima) {
+            const messages = await washima.fetchAndSaveAllMessages(data.options)
+            response.json(messages)
+            return
+        }
+
+        response.send(null)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.use(requireUserId)
+
+router.post("/", async (request: UserRequest, response: Response) => {
+    const data = request.body as WashimaForm
+
+    try {
+        const washima = await Washima.new(data)
+        Log.new({
+            company_id: data.company_id,
+            user_id: request.user!.id,
+            text: `adicionou ${data.name} - ${data.number} no Business`,
+            color: "success",
+        })
+        response.json(washima)
+
+        const io = getIoInstance()
+        io.emit("washima:update", washima)
+
+        await washima.initialize()
+        await washima.fetchAndSaveAllMessages()
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.patch("/", async (request: UserRequest, response: Response) => {
+    const data = request.body as Partial<Washima> & { id: string }
+
+    try {
+        const washima = Washima.find(data.id)
+        await washima?.update(data)
+        if (washima) {
+            Log.new({
+                company_id: washima.companies[0].id,
+                user_id: request.user!.id,
+                text: `editou ${washima.name} - ${washima.number} no Business`,
+                color: "info",
+            })
+        }
+        response.json(washima)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.delete("/", async (request: UserRequest, response: Response) => {
+    const data = request.body as { washima_id: string }
+
+    try {
+        const washima = await Washima.delete(data.washima_id)
+        if (washima) {
+            Log.new({
+                company_id: washima.companies[0].id,
+                user_id: request.user!.id,
+                text: `deletou ${washima.name} - ${washima.number} no Business`,
+                color: "error",
+            })
+        }
+        response.json(washima)
+        const io = getIoInstance()
+        io.emit("washima:delete", washima)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.post("/restart", async (request: UserRequest, response: Response) => {
+    const data = request.body as { washima_id: string }
+
+    try {
+        const washima = Washima.find(data.washima_id)
+        if (washima) {
+            Log.new({
+                company_id: washima.companies[0].id,
+                user_id: request.user!.id,
+                text: `reiniciou ${washima.name} - ${washima.number} no Business`,
+                color: "warning",
+            })
+        }
+
+        await washima?.restart()
+
+        response.json(washima)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+
+
 
 export default router

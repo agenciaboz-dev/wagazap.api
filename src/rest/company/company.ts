@@ -33,4 +33,14 @@ router.get("/users", async (request: CompanyRequest, response: Response) => {
     }
 })
 
+router.get("/logs", async (request: CompanyRequest, response: Response) => {
+    try {
+        const logs = await request.company?.getLogs()
+        response.json(logs)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 export default router
