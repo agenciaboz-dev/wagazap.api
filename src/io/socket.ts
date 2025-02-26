@@ -37,5 +37,9 @@ export const handleSocket = (socket: Socket) => {
         Washima.getContact(socket, washima_id, contact_id, message_id)
     )
 
+    socket.on("washima:forward", (washima_id: string, chat_id: string, destinatary_ids: string[], message_ids: string[]) =>
+        Washima.forwardMessage(socket, washima_id, chat_id, destinatary_ids, message_ids)
+    )
+
     socket.on("nagazap:response", (nagazap_id: string, data: NagazapResponseForm) => Nagazap.sendResponse(nagazap_id, data))
 }

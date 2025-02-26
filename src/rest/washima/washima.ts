@@ -47,7 +47,7 @@ router.get("/profile-pic", async (request: Request, response: Response) => {
                 response.json(picture)
             }
         } catch (error) {
-            console.log(error)
+            // console.log(error)
             response.status(500).send(error)
         }
     } else {

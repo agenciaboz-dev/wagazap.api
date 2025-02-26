@@ -43,6 +43,7 @@ export class WashimaMessage {
     edited: boolean
     deleted: boolean
     replied_to?: WashimaMessage | null
+    forwarded: boolean
 
     static async getChatMessages(chat_id: string, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -84,6 +85,7 @@ export class WashimaMessage {
 
     static async new(data: WashimaMessageForm) {
         const message = data.message
+        console.log(message)
 
         if (data.isGroup && !message.fromMe) {
             const contact = await message.getContact()
@@ -111,6 +113,7 @@ export class WashimaMessage {
                 ack: message.ack || 0,
                 author: message.author || "",
                 replied_to: JSON.stringify(washimaQuotedMessage) || undefined,
+                forwarded: message.isForwarded,
             },
         })
 
@@ -178,5 +181,6 @@ export class WashimaMessage {
         this.edited = data.edited
         this.deleted = data.deleted
         this.replied_to = data.replied_to ? (JSON.parse(data.replied_to as string) as WashimaMessage) : null
+        this.forwarded = data.forwarded
     }
 }

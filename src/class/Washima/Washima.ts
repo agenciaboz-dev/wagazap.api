@@ -17,6 +17,7 @@ import Fuse from "fuse.js"
 import numeral from "numeral"
 import { Company } from "../Company"
 import { Bot } from "../Bot/Bot"
+import { sleep } from "../../tools/sleep"
 // import numeral from 'numeral'
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
@@ -194,6 +195,22 @@ export class Washima {
             await deleteDirectory(`static/washima/auth/whatsapp.auth.${washima.id}`)
             await deleteDirectory(`static/washima/${washima.id}`)
             return washima
+        }
+    }
+
+    static async forwardMessage(socket: Socket, washima_id: string, chat_id: string, destinatary_ids: string[], message_ids: string[]) {
+        const washima = Washima.find(washima_id)
+        if (washima) {
+            const messages = (await Promise.all(message_ids.map(async (message_id) => await washima.client.getMessageById(message_id)))).sort(
+                (a, b) => a.timestamp - b.timestamp
+            )
+
+            destinatary_ids.forEach(async (destinatary_id) => {
+                for (const message of messages) {
+                    await message.forward(destinatary_id)
+                    await sleep(1000)
+                }
+            })
         }
     }
 
@@ -406,7 +423,12 @@ export class Washima {
                     if (!message.fromMe && !chat.isGroup) {
                         const bots = await Bot.getByWashima(this.id)
                         bots.forEach((bot) => {
-                            bot.handleIncomingMessage(message.body, chat.id._serialized, (text) => this.sendMessage(chat.id._serialized, text), bots.filter(item => item.id !== bot.id))
+                            bot.handleIncomingMessage(
+                                message.body,
+                                chat.id._serialized,
+                                (text) => this.sendMessage(chat.id._serialized, text),
+                                bots.filter((item) => item.id !== bot.id)
+                            )
                         })
                     }
                 } catch (error) {
@@ -485,8 +507,8 @@ export class Washima {
             const profilePic = await this.getCachedProfilePicture(target_id, target)
             return profilePic
         } catch (error) {
-            console.log("error getting contact image")
-            console.log(error)
+            // console.log("error getting contact image")
+            // console.log(error)
         }
     }
 
