@@ -392,6 +392,10 @@ export class Washima {
                     const io = getIoInstance()
                     const chat = await message.getChat()
 
+                    if (chat.isGroup && (await WashimaMessage.getByWrongId(message.id.id))) {
+                        return
+                    }
+
                     if (message.hasMedia) {
                         await this.getCachedMedia(message)
                     }

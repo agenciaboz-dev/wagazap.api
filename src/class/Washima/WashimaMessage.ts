@@ -83,6 +83,13 @@ export class WashimaMessage {
         return new WashimaMessage(result)
     }
 
+    static async getByWrongId(id: string) {
+        const result = await prisma.washimaMessage.findFirst({ where: { id: {contains: id} } })
+        if (!result) throw "messagem não encontrada"
+
+        return new WashimaMessage(result)
+    }
+
     static async new(data: WashimaMessageForm) {
         const message = data.message
         console.log(message)
