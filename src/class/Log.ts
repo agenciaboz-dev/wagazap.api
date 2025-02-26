@@ -34,7 +34,6 @@ export class Log {
 
             console.log("new log")
             const log = new Log(result)
-            console.log(log)
         } catch (error) {
             console.log(error)
         }

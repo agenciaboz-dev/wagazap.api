@@ -173,8 +173,6 @@ export class Bot {
     async handleIncomingMessage(message: string, chat_id: string, response: (text: string) => Promise<void>, other_bots: Bot[]) {
         if (other_bots.some((bot) => bot.getActiveChat(chat_id))) return
 
-        // message = this.normalize(message)
-
         let current_chat = this.getActiveChat(chat_id)
 
         if (!current_chat && !!this.compareIncomingMessage(message)) {
@@ -336,24 +334,30 @@ export class Bot {
     }
 
     compareIncomingMessage(message: string, trigger = this.trigger) {
-        if (this.fuzzy_threshold === 0) {
-            if (trigger === message) return trigger
+        const potential_triggers = trigger.split(";").map((text) => text.trim())
 
-            return
+        for (trigger of potential_triggers) {
+            console.log({ trigger })
+            if (this.fuzzy_threshold === 0) {
+                if (trigger === message) return trigger
+
+                // return
+            }
+
+            const triggers = [this.normalize(trigger)]
+            const fuse = new Fuse(triggers, {
+                includeScore: true,
+                threshold: this.fuzzy_threshold, // Lower threshold for closer matches
+                ignoreLocation: true, // Ignores the location of the match which allows for more general matching
+                minMatchCharLength: 2, // Minimum character length of matches to consider
+            })
+
+            const result = fuse.search(this.normalize(message)).map((item) => item.item)
+            if (result.length > 0) {
+                return result[0]
+            }
         }
 
-        const triggers = [this.normalize(trigger)]
-        const fuse = new Fuse(triggers, {
-            includeScore: true,
-            threshold: this.fuzzy_threshold, // Lower threshold for closer matches
-            ignoreLocation: true, // Ignores the location of the match which allows for more general matching
-            minMatchCharLength: 2, // Minimum character length of matches to consider
-        })
-
-        const result = fuse.search(this.normalize(message)).map((item) => item.item)
-        if (result.length > 0) {
-            return result[0]
-        }
     }
 }
 
