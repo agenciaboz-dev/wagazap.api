@@ -335,27 +335,30 @@ export class Bot {
 
     compareIncomingMessage(message: string, trigger = this.trigger) {
         const potential_triggers = trigger.split(";").map((text) => text.trim())
+        console.log({ potential_triggers })
 
         for (trigger of potential_triggers) {
-            console.log({ trigger })
+            console.log({ trigger, threshold: this.fuzzy_threshold })
+
             if (this.fuzzy_threshold === 0) {
                 if (trigger === message) return trigger
 
                 // return
+            } else {
+                const triggers = [this.normalize(trigger)]
+                const fuse = new Fuse(triggers, {
+                    includeScore: true,
+                    threshold: this.fuzzy_threshold, // Lower threshold for closer matches
+                    ignoreLocation: true, // Ignores the location of the match which allows for more general matching
+                    minMatchCharLength: 2, // Minimum character length of matches to consider
+                })
+
+                const result = fuse.search(this.normalize(message)).map((item) => item.item)
+                if (result.length > 0) {
+                    return result[0]
+                }
             }
 
-            const triggers = [this.normalize(trigger)]
-            const fuse = new Fuse(triggers, {
-                includeScore: true,
-                threshold: this.fuzzy_threshold, // Lower threshold for closer matches
-                ignoreLocation: true, // Ignores the location of the match which allows for more general matching
-                minMatchCharLength: 2, // Minimum character length of matches to consider
-            })
-
-            const result = fuse.search(this.normalize(message)).map((item) => item.item)
-            if (result.length > 0) {
-                return result[0]
-            }
         }
 
     }
