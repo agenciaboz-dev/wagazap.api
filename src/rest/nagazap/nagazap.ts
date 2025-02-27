@@ -303,10 +303,61 @@ router.post("/template", async (request: NagazapRequest & UserRequest, response:
     }
 })
 
+router.patch("/template", async (request: NagazapRequest & UserRequest, response: Response) => {
+    const { template_id } = request.query
+
+    if (!template_id) return response.status(400).send("template_id param is required")
+
+    try {
+        const data = JSON.parse(request.body.data) as Partial<TemplateForm>
+        console.log(JSON.stringify(data, null, 4))
+
+        const nagazap = request.nagazap!
+
+        if (request.files && data.components) {
+            const file = request.files.file as UploadedFile
+            file.name = file.name.replace(/[\s\/\\?%*:|"<>]+/g, "-").trim()
+            const media_handler = await nagazap.uploadTemplateMedia(file)
+            data.components.forEach((component, index) => {
+                if (component.type === "HEADER") {
+                    data.components![index].example = { header_handle: [media_handler.h] }
+                }
+            })
+        }
+
+        const dto: Partial<TemplateForm> = {}
+        dto.components = data.components
+        dto.category = data.category
+
+        const template_response = await nagazap.updateTemplate(template_id as string, dto)
+        const csv_model = await nagazap.exportTemplateModel(template_response.info, "csv")
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `Alterou um Template em ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "info",
+        })
+        response.json({ template_response, csv_model })
+    } catch (error) {
+        if (error instanceof AxiosError && error.response?.status === 400) {
+            console.log(error.response.data)
+            return response
+                .status(400)
+                .send(
+                    error.response.data.error.error_user_title && error.response.data.error.error_user_msg
+                        ? `${error.response.data.error.error_user_title}. ${error.response.data.error.error_user_msg}`
+                        : error.response.data.error.message
+                )
+        }
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 router.post("/template-sheet", async (request: NagazapRequest & UserRequest, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string | undefined
     const template = request.body as TemplateForm
-    const { file_type } = request.query || "csv"
+    const { file_type } = request.query
 
     if (nagazap_id) {
         try {

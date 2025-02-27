@@ -9,7 +9,14 @@ import { BlacklistLog, FailedMessageLog, SentMessageLog } from "../types/shared/
 import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
-import { TemplateForm, TemplateFormResponse, TemplateInfo, TemplateParam } from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
+import {
+    TemplateCategory,
+    TemplateComponent,
+    TemplateForm,
+    TemplateFormResponse,
+    TemplateInfo,
+    TemplateParam,
+} from "../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import { MediaResponse } from "../types/shared/Meta/WhatsappBusiness/MediaResponse"
 import { saveFile } from "../tools/saveFile"
 import * as csvWriter from "csv-writer"
@@ -121,7 +128,7 @@ export class NagaTemplate {
             where: { id: this.id },
             data: {
                 sent: data.sent,
-                last_update: now().toString(),
+                last_update: info ? now().toString() : undefined,
                 info: info ? JSON.stringify(info) : undefined,
             },
         })
@@ -620,7 +627,43 @@ export class Nagazap {
         return template
     }
 
-    getTemplateSheet(template_name: string, type: string) {
+    async updateTemplate(template_id: string, data: { components?: TemplateComponent[]; category?: TemplateCategory }) {
+        const template = await NagaTemplate.getById(template_id)
+
+        if (data.components) {
+            await Promise.all(
+                data.components.map(async (component, component_index) => {
+                    if (component.buttons) {
+                        await Promise.all(
+                            component.buttons.map(async (button, button_index) => {
+                                if (button.url) {
+                                    try {
+                                        const link = await this.newLink(button.url, template.info.name)
+                                        data.components![component_index].buttons![button_index].url = link.new_url
+                                    } catch (error) {}
+                                }
+                            })
+                        )
+                    }
+                })
+            )
+        }
+
+        if (template.info.status === "APPROVED" && data.category) {
+            delete data.category
+        }
+
+        const response = await api.post(`/${template_id}`, data, {
+            headers: this.buildHeaders(),
+        })
+        const result = response.data as TemplateFormResponse
+        console.log(result)
+        await template.update({ info: { status: "PENDING", category: result.category }, last_update: now() })
+
+        return template
+    }
+
+    getTemplateSheet(template_name: string, type = "csv") {
         const basePath = `static/nagazap/${slugify(this.displayName || this.displayPhone || this.id.toString())}/templates`
         const fullPath = path.join(basePath, `${template_name}.${type}`)
 
@@ -629,7 +672,7 @@ export class Nagazap {
         return fullPath
     }
 
-    async exportTemplateModel(template: TemplateForm, type: string) {
+    async exportTemplateModel(template: TemplateForm, type = "csv") {
         let fullPath = this.getTemplateSheet(template.name, "csv")
 
         if (type === "csv") {
@@ -781,7 +824,9 @@ export class Nagazap {
             try {
                 await NagaTemplate.new(template, this.id)
             } catch (error) {
-                await NagaTemplate.update(template)
+                const result = await NagaTemplate.update({ id: template.id, info: template })
+                if (template.name === "pombo") {
+                }
             }
         }
     }
