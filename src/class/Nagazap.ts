@@ -22,10 +22,12 @@ import { NagazapLink } from "./NagazapLink"
 import { getLocalUrl } from "../tools/getLocalUrl"
 import { randomUUID } from "crypto"
 import { Bot } from "./Bot/Bot"
+import { now } from "lodash"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
+export type NagaTemplatePrisma = Prisma.NagaTemplateGetPayload<{}>
 export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: true })
 export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
 export interface NagazapResponseForm {
@@ -35,6 +37,98 @@ export interface NagazapResponseForm {
 interface BuildHeadersOptions {
     upload?: boolean
 }
+
+export class NagaTemplate {
+    id: string
+    created_at: number
+    last_update: number
+    sent: number
+    info: TemplateInfo
+    nagazap_id: string
+
+    static async updateSentNumber(template_name: string, batch_size: number) {
+        const template = await NagaTemplate.getByName(template_name)
+        await template.update({ sent: template.sent + batch_size })
+        return template
+    }
+
+    static async getByName(name: string) {
+        const result = await prisma.nagaTemplate.findFirst({ where: { info: { string_contains: name } } })
+        if (!result) throw "template não encontrado"
+
+        return new NagaTemplate(result)
+    }
+
+    static async getById(id: string) {
+        const result = await prisma.nagaTemplate.findUnique({ where: { id } })
+        if (!result) throw "template não encontrado"
+
+        return new NagaTemplate(result)
+    }
+
+    static async new(data: TemplateInfo, nagazap_id: string) {
+        const timestamp = now().toString()
+
+        const result = await prisma.nagaTemplate.create({
+            data: {
+                created_at: timestamp,
+                last_update: timestamp,
+                info: JSON.stringify(data),
+                id: data.id,
+                nagazap_id: nagazap_id,
+            },
+        })
+
+        return new NagaTemplate(result)
+    }
+
+    static async update(data: Omit<Partial<NagaTemplate>, "info"> & { id: string; info?: Partial<TemplateInfo> }) {
+        const template = await NagaTemplate.getById(data.id)
+        await template.update(data)
+        return template
+    }
+
+    constructor(data: NagaTemplatePrisma) {
+        this.id = data.id
+        this.created_at = Number(data.created_at)
+        this.last_update = Number(data.last_update)
+        this.sent = data.sent
+        this.info = JSON.parse(data.info as string)
+        this.nagazap_id = data.nagazap_id
+    }
+
+    load(data: NagaTemplatePrisma) {
+        this.id = data.id
+        this.created_at = Number(data.created_at)
+        this.last_update = Number(data.last_update)
+        this.sent = data.sent
+        this.info = JSON.parse(data.info as string)
+        this.nagazap_id = data.nagazap_id
+    }
+
+    async update(data: Omit<Partial<NagaTemplate>, "info"> & { info?: Partial<TemplateInfo> }) {
+        let info: TemplateInfo | undefined = undefined
+        if (data.info) {
+            info = this.info
+            Object.entries(data.info).forEach(([key, value]) => {
+                // @ts-ignore
+                info[key as keyof TemplateInfo] = value
+            })
+        }
+
+        const result = await prisma.nagaTemplate.update({
+            where: { id: this.id },
+            data: {
+                sent: data.sent,
+                last_update: now().toString(),
+                info: info ? JSON.stringify(info) : undefined,
+            },
+        })
+
+        this.load(result)
+    }
+}
+
 export class NagaMessage {
     id: number
     from: string
@@ -323,17 +417,17 @@ export class Nagazap {
         this.emit()
     }
 
-    async getTemplates() {
+    async getMetaTemplates() {
         const response = await api.get(`/${this.businessId}?fields=id,name,message_templates`, {
             headers: this.buildHeaders(),
         })
 
-        const templates = response.data.message_templates.data
+        const templates = response.data.message_templates.data as TemplateInfo[]
         return templates
     }
 
-    async getTemplate(template_id: string) {
-        const templates: TemplateInfo[] = await this.getTemplates()
+    async getMetaTemplate(template_id: string) {
+        const templates: TemplateInfo[] = await this.getMetaTemplates()
         const template = templates.find((item) => item.id === template_id)
         if (!template) throw "template não encontrado"
 
@@ -402,14 +496,15 @@ export class Nagazap {
 
     async prepareBatch(data: OvenForm, image_id = "") {
         const template = await this.getTemplate(data.template_id)
+        const template_info = template.info
 
         console.log(JSON.stringify(data, null, 4))
         const forms: WhatsappForm[] = data.to.map((item) => {
             return {
                 number: item.telefone,
-                template: template.name,
-                language: template.language,
-                components: template.components
+                template: template_info.name,
+                language: template_info.language,
+                components: template_info.components
                     .filter((component) => component.format == "IMAGE" || component.example)
                     .map((component) => {
                         const param_type = component.type === "HEADER" ? "header_text_named_params" : "body_text_named_params"
@@ -456,6 +551,9 @@ export class Nagazap {
     async bake() {
         const batch = this.stack.slice(0, this.batchSize)
         const sent = await Promise.all(batch.map(async (message) => this.sendMessage(message)))
+
+        const template = batch[0].template
+        NagaTemplate.updateSentNumber(template, batch.length)
 
         this.stack = this.stack.slice(this.batchSize)
         await this.saveStack()
@@ -516,8 +614,9 @@ export class Nagazap {
             headers: this.buildHeaders(),
         })
         const result = response.data as TemplateFormResponse
+        const template = await NagaTemplate.new({ ...data, ...result }, this.id)
 
-        return result
+        return template
     }
 
     getTemplateSheet(template_name: string) {
@@ -654,5 +753,26 @@ export class Nagazap {
     async findOriginalLink(url: string) {
         const result = await prisma.nagazapLink.findFirst({ where: { original_url: url, nagazap_id: this.id } })
         if (result) return new NagazapLink(result)
+    }
+
+    async getTemplates() {
+        const result = await prisma.nagaTemplate.findMany({ where: { nagazap_id: this.id } })
+        return result.map((item) => new NagaTemplate(item))
+    }
+
+    async getTemplate(id: string) {
+        return await NagaTemplate.getById(id)
+    }
+
+    async syncTemplates() {
+        const meta_templates = await this.getMetaTemplates()
+        console.log("syncing templates")
+        for (const template of meta_templates) {
+            try {
+                await NagaTemplate.new(template, this.id)
+            } catch (error) {
+                await NagaTemplate.update(template)
+            }
+        }
     }
 }

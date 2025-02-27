@@ -33,6 +33,7 @@ model Nagazap {
 
     links       NagazapLink[]
     bots        Bot[]
+    templates   NagaTemplate[]
 }
 
 model NagazapMessage {
@@ -180,4 +181,17 @@ model Log {
     user            User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
     company_id      String
     company         Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
+}
+
+model NagaTemplate {
+    id              String          @id @default(uuid())
+    created_at      String
+    last_update     String
+    sent            Int             @default(0)
+
+    info            Json
+
+    nagazap_id      String
+    nagazap         Nagazap         @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
+
 }

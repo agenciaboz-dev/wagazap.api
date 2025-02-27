@@ -1,6 +1,6 @@
 import express, { Express, Request, Response } from "express"
 import { MessageWebhook } from "../../types/shared/Meta/WhatsappBusiness/MessageWebhook"
-import { NagaMessageType, Nagazap } from "../../class/Nagazap"
+import { NagaMessageType, NagaTemplate, Nagazap } from "../../class/Nagazap"
 import { TemplateUpdateHook } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
 import { getIoInstance } from "../../io"
 const router = express.Router()
@@ -72,6 +72,7 @@ router.post("/messages", async (request: Request, response: Response) => {
                     try {
                         const io = getIoInstance()
                         io.emit("template:update", { id: template.message_template_id, status: template.event })
+                        NagaTemplate.update({ id: template.message_template_id.toString(), info: { status: template.event } })
                     } catch (error) {
                         console.log(error)
                     }

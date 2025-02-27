@@ -30,6 +30,19 @@ router.use("/webhook", webhook)
 router.use("/stats", stats)
 router.use("/links", links)
 
+router.get("/sync-templates", async (request: Request, response: Response) => {
+    try {
+        const nagazaps = await Nagazap.getAll()
+        for (const nagazap of nagazaps) {
+            await nagazap.syncTemplates()
+        }
+        response.json(nagazaps)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 router.get("/", async (request: Request, response: Response) => {
     const company_id = request.query.company_id as string | undefined
     const nagazap_id = request.query.nagazap_id as string | undefined
@@ -355,6 +368,23 @@ router.post("/oven", async (request: NagazapRequest & UserRequest, response: Res
         if (error instanceof AxiosError) {
             console.log(error.response?.data)
         }
+        response.status(500).send(error)
+    }
+})
+
+router.post("/sync-templates", async (request: NagazapRequest & UserRequest, response: Response) => {
+    try {
+        const nagazap = request.nagazap!
+        await nagazap.syncTemplates()
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `sincronizou os templates de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "info",
+        })
+        response.status(201).send()
+    } catch (error) {
+        console.log(error)
         response.status(500).send(error)
     }
 })
