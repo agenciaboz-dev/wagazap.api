@@ -441,6 +441,21 @@ router.post("/sync-templates", async (request: NagazapRequest & UserRequest, res
     }
 })
 
+router.delete("/template", async (request: NagazapRequest & UserRequest, response: Response) => {
+    const { template_id } = request.query
+
+    if (!template_id) return response.status(400).send("template_id param is required")
+
+    try {
+        const nagazap = request.nagazap!
+        await nagazap.deleteTemplate(template_id as string)
+        response.status(201).send()
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 // // router.post("/", async (request: Request, response: Response) => {
 // //     const data = request.body as WhatsappForm
 

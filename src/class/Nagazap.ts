@@ -830,4 +830,13 @@ export class Nagazap {
             }
         }
     }
+
+    async deleteTemplate(template_id: string) {
+        const template = await this.getTemplate(template_id)
+        const response = await api.delete(`/${this.businessId}/message_templates`, {
+            headers: this.buildHeaders(),
+            params: { name: template.info.name },
+        })
+        await prisma.nagaTemplate.delete({ where: { id: template.id } })
+    }
 }
