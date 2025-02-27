@@ -279,7 +279,7 @@ router.post("/template", async (request: NagazapRequest & UserRequest, response:
         }
 
         const template_response = await nagazap.createTemplate(data)
-        const csv_model = await nagazap.exportTemplateModel(data)
+        const csv_model = await nagazap.exportTemplateModel(data, "csv")
         Log.new({
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
@@ -306,16 +306,17 @@ router.post("/template", async (request: NagazapRequest & UserRequest, response:
 router.post("/template-sheet", async (request: NagazapRequest & UserRequest, response: Response) => {
     const nagazap_id = request.query.nagazap_id as string | undefined
     const template = request.body as TemplateForm
+    const { file_type } = request.query || "csv"
 
     if (nagazap_id) {
         try {
             const nagazap = request.nagazap!
-            const path = nagazap.getTemplateSheet(template.name)
+            const path = nagazap.getTemplateSheet(template.name, file_type as string)
             console.log(path)
 
             if (!existsSync(path)) {
                 console.log("sheet not found, generating a new one")
-                await nagazap.exportTemplateModel(template)
+                await nagazap.exportTemplateModel(template, file_type as string)
             }
 
             response.json(path)

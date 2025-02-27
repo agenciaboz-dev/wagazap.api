@@ -23,6 +23,7 @@ import { getLocalUrl } from "../tools/getLocalUrl"
 import { randomUUID } from "crypto"
 import { Bot } from "./Bot/Bot"
 import { now } from "lodash"
+import { convertCsvToXlsx } from "@aternus/csv-to-xlsx"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
@@ -619,44 +620,53 @@ export class Nagazap {
         return template
     }
 
-    getTemplateSheet(template_name: string) {
+    getTemplateSheet(template_name: string, type: string) {
         const basePath = `static/nagazap/${slugify(this.displayName || this.displayPhone || this.id.toString())}/templates`
-        const fullPath = path.join(basePath, `${template_name}.csv`)
+        const fullPath = path.join(basePath, `${template_name}.${type}`)
 
         fs.mkdirSync(basePath, { recursive: true })
 
         return fullPath
     }
 
-    async exportTemplateModel(template: TemplateForm) {
-        const components = template.components.filter(
-            (item) => !!item.example?.body_text_named_params?.length || !!item.example?.header_text_named_params?.length
-        )
+    async exportTemplateModel(template: TemplateForm, type: string) {
+        let fullPath = this.getTemplateSheet(template.name, "csv")
 
-        const example: { [key: string]: string }[] = [{ telefone: "41999999999" }]
+        if (type === "csv") {
+            const components = template.components.filter(
+                (item) => !!item.example?.body_text_named_params?.length || !!item.example?.header_text_named_params?.length
+            )
 
-        const params: ObjectStringifierHeader = components
-            .map((component) => {
-                const header = component.example!.header_text_named_params
-                const body = component.example!.body_text_named_params
+            const example: { [key: string]: string }[] = [{ telefone: "41999999999" }]
 
-                const values = (header || body) as TemplateParam[]
+            const params: ObjectStringifierHeader = components
+                .map((component) => {
+                    const header = component.example!.header_text_named_params
+                    const body = component.example!.body_text_named_params
 
-                return values.map((param) => {
-                    example[0][param.param_name] = param.example
-                    return { id: param.param_name, title: param.param_name }
+                    const values = (header || body) as TemplateParam[]
+
+                    return values.map((param) => {
+                        example[0][param.param_name] = param.example
+                        return { id: param.param_name, title: param.param_name }
+                    })
                 })
+                .flatMap((item) => item)
+
+            const writer = csvWriter.createObjectCsvWriter({
+                path: fullPath,
+                header: [{ id: "telefone", title: "telefone" }, ...params],
             })
-            .flatMap((item) => item)
 
-        const fullPath = this.getTemplateSheet(template.name)
+            await writer.writeRecords(example)
+        }
 
-        const writer = csvWriter.createObjectCsvWriter({
-            path: fullPath,
-            header: [{ id: "telefone", title: "telefone" }, ...params],
-        })
+        if (type === "xlsx") {
+            const destination = this.getTemplateSheet(template.name, "xlsx")
+            convertCsvToXlsx(fullPath, destination, { sheetName: `${template.name}` })
+            fullPath = destination
+        }
 
-        await writer.writeRecords(example)
         return fullPath
     }
 
