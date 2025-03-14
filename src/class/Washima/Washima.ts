@@ -278,6 +278,10 @@ export class Washima {
 
     async initialize(queue?: Washima[]) {
         console.log(`initializing ${this.name} - ${this.number}`)
+        const next_washima = queue?.pop()
+        if (next_washima) {
+            await next_washima.initialize(queue)
+        }
 
         try {
             const companies = await Company.getCompaniesFromWashimaId(this.id)
@@ -326,11 +330,6 @@ export class Washima {
                 console.log(`washima:${this.id}:init`, "Pronto", 4)
 
                 io.emit("washima:update", this)
-
-                const next_washima = queue?.pop()
-                if (next_washima) {
-                    await next_washima.initialize(queue)
-                }
             })
 
             this.client.on("disconnected", async () => {
