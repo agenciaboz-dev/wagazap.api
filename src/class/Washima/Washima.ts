@@ -343,7 +343,7 @@ export class Washima {
                     io.emit("washima:message:update", updated, chat.id._serialized)
                     io.emit(`washima:${this.id}:message`, { chat, message: updated })
                 } catch (error) {
-                    console.log(error)
+                    // console.log(error)
                 }
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
                 this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
@@ -358,7 +358,7 @@ export class Washima {
                     io.emit("washima:message:update", updated, chat.id._serialized)
                     io.emit(`washima:${this.id}:message`, { chat, message: updated })
                 } catch (error) {
-                    console.log(error)
+                    // console.log(error)
                 }
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
                 this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
@@ -375,7 +375,7 @@ export class Washima {
                     io.emit("washima:message:update", updated, chat.id._serialized)
                     io.emit(`washima:${this.id}:message`, { chat, message: updated })
                 } catch (error) {
-                    console.log(error)
+                    // console.log(error)
                 }
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
                 this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
@@ -435,7 +435,7 @@ export class Washima {
                         })
                     }
                 } catch (error) {
-                    console.log({ error })
+                    // console.log({ error })
                 }
             })
 

@@ -92,7 +92,6 @@ export class WashimaMessage {
 
     static async new(data: WashimaMessageForm) {
         const message = data.message
-        console.log(message)
 
         if (data.isGroup && !message.fromMe) {
             const contact = await message.getContact()
