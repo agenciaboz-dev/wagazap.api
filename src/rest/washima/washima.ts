@@ -67,7 +67,7 @@ router.get("/chat", async (request: Request, response: Response) => {
         if (washima) {
             if (chat_id) {
                 try {
-                    const chat = await washima.buildChat(chat_id, Number(offset || 0), !!is_group)
+                    const chat = await washima.buildChat(chat_id, Number(offset || 0))
                     response.json(chat)
                 } catch (error) {
                     console.log(error)

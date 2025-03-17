@@ -514,13 +514,12 @@ export class Washima {
         }
     }
 
-    async buildChat(id: string, offset?: number, isGroup?: boolean) {
+    async buildChat(id: string, offset?: number) {
         try {
-            // const chat = await this.client.getChatById(id)
-            const messages = await WashimaMessage.getChatMessages(this.id, id, offset)
-            // const messages = await chat.fetchMessages({ limit: Number.MAX_VALUE })
+            const chat = await this.client.getChatById(id)
+            const messages = await WashimaMessage.getChatMessages(this.id, id, chat.isGroup, offset)
 
-            if (isGroup) {
+            if (chat.isGroup) {
                 const group_updates = await WashimaGroupUpdate.getGroupUpdates(id)
                 console.log(group_updates)
 

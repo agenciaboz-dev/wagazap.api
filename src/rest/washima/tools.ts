@@ -25,10 +25,11 @@ router.get("/disk-usage", async (request: Request, response: Response) => {
 router.get("/copy-chat", async (request: Request, response: Response) => {
     const chat_id = request.query.chat_id as string | undefined
     const washima_id = request.query.washima_id as string | undefined
+    const is_group = request.query.is_group as string | undefined
 
     if (chat_id && washima_id) {
         try {
-            const messages = await WashimaMessage.getChatMessages(washima_id, chat_id, 0, null)
+            const messages = await WashimaMessage.getChatMessages(washima_id, chat_id, !!is_group, 0, null)
             response.json(messages)
         } catch (error) {
             console.log(error)
