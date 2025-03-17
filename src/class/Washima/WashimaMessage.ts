@@ -45,9 +45,9 @@ export class WashimaMessage {
     replied_to?: WashimaMessage | null
     forwarded: boolean
 
-    static async getChatMessages(chat_id: string, offset: number = 0, take?: number | null) {
+    static async getChatMessages(washima_id: string, chat_id: string, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
-            where: { chat_id },
+            where: { chat_id, washima_id },
             orderBy: { timestamp: "desc" },
             skip: offset,
             take: take === null ? undefined : take || 10,
