@@ -448,7 +448,13 @@ router.delete("/template", async (request: NagazapRequest & UserRequest, respons
 
     try {
         const nagazap = request.nagazap!
-        await nagazap.deleteTemplate(template_id as string)
+        const template = await nagazap.deleteTemplate(template_id as string)
+        Log.new({
+            company_id: request.nagazap!.companyId,
+            user_id: request.user!.id,
+            text: `deletou o template ${template.info.name} de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
+            color: "info",
+        })
         response.status(201).send()
     } catch (error) {
         console.log(error)

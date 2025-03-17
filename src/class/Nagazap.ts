@@ -837,6 +837,7 @@ export class Nagazap {
             headers: this.buildHeaders(),
             params: { name: template.info.name },
         })
-        await prisma.nagaTemplate.delete({ where: { id: template.id } })
+        const deleted = await prisma.nagaTemplate.delete({ where: { id: template.id } })
+        return new NagaTemplate(deleted)
     }
 }
