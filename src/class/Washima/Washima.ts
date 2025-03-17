@@ -391,10 +391,6 @@ export class Washima {
                     const io = getIoInstance()
                     const chat = await message.getChat()
 
-                    if (chat.isGroup && (await WashimaMessage.getByWrongId(message.id.id))) {
-                        return
-                    }
-
                     if (message.hasMedia) {
                         await this.getCachedMedia(message)
                     }
@@ -403,12 +399,15 @@ export class Washima {
 
                     this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
-                    const washima_message = await WashimaMessage.new({
-                        chat_id: chat.id._serialized,
-                        washima_id: this.id,
-                        message,
-                        isGroup: chat.isGroup,
-                    })
+                    const washima_message = await WashimaMessage.new(
+                        {
+                            chat_id: chat.id._serialized,
+                            washima_id: this.id,
+                            message,
+                            isGroup: chat.isGroup,
+                        },
+                        this.info.pushname
+                    )
 
                     this.companies.forEach(async (company) => {
                         const users = await company.getUsers()

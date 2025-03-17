@@ -84,14 +84,19 @@ export class WashimaMessage {
     }
 
     static async getByWrongId(id: string) {
-        const result = await prisma.washimaMessage.findFirst({ where: { id: {contains: id} } })
-        if (!result) throw "messagem não encontrada"
+        const result = await prisma.washimaMessage.findFirst({ where: { id: { contains: id } } })
+        if (result) return new WashimaMessage(result)
 
-        return new WashimaMessage(result)
+        return null
     }
 
-    static async new(data: WashimaMessageForm) {
+    static async new(data: WashimaMessageForm, author?: string) {
         const message = data.message
+
+        const existing_message = await WashimaMessage.getByWrongId(message.id.id)
+        if (data.isGroup && existing_message) {
+            return existing_message
+        }
 
         if (data.isGroup && !message.fromMe) {
             const contact = await message.getContact()
@@ -103,6 +108,7 @@ export class WashimaMessage {
             const quotedMessage = await message.getQuotedMessage()
             washimaQuotedMessage = await WashimaMessage.getBySid(quotedMessage.id._serialized)
         }
+
         const saved = await prisma.washimaMessage.create({
             data: {
                 washima_id: data.washima_id,
@@ -117,7 +123,7 @@ export class WashimaMessage {
                 to: message.to || "",
                 type: message.type || "",
                 ack: message.ack || 0,
-                author: message.author || "",
+                author: message.author || author || "",
                 replied_to: JSON.stringify(washimaQuotedMessage) || undefined,
                 forwarded: message.isForwarded,
             },
