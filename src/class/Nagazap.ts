@@ -115,6 +115,7 @@ export class NagaTemplate {
     }
 
     async update(data: Omit<Partial<NagaTemplate>, "info"> & { info?: Partial<TemplateInfo> }) {
+        console.log({ template_update_data: data })
         let info: TemplateInfo | undefined = undefined
         if (data.info) {
             info = this.info
@@ -123,6 +124,8 @@ export class NagaTemplate {
                 info[key as keyof TemplateInfo] = value
             })
         }
+
+        console.log({ info_atual: this.info, info_nova: info })
 
         const result = await prisma.nagaTemplate.update({
             where: { id: this.id },
