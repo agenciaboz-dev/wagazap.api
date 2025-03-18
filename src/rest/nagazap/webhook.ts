@@ -70,8 +70,8 @@ router.post("/messages", async (request: Request, response: Response) => {
                     console.log("template webhook")
                     console.log(template)
                     try {
-                        const io = getIoInstance()
                         await NagaTemplate.update({ id: template.message_template_id.toString(), info: { status: template.event } })
+                        const io = getIoInstance()
                         io.emit("template:update", { id: template.message_template_id.toString(), status: template.event })
                     } catch (error) {
                         console.log(error)
