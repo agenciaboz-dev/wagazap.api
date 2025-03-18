@@ -2,7 +2,8 @@ import express, { Express, Request, Response } from "express"
 import { MessageWebhook } from "../../types/shared/Meta/WhatsappBusiness/MessageWebhook"
 import { NagaMessageType, NagaTemplate, Nagazap } from "../../class/Nagazap"
 import { TemplateUpdateHook } from "../../types/shared/Meta/WhatsappBusiness/TemplatesInfo"
-import { getIoInstance } from "../../io"
+import { getIoInstance } from "../../io/socket"
+
 const router = express.Router()
 
 // https://apiwagazap.boz.app.br/nagazap/webhook/messages
