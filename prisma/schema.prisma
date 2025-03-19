@@ -175,7 +175,7 @@ model Log {
 
     timestamp       String
     text            String          @db.Text
-    color           String          @default("info")
+    type            String          @default("default")
 
     user_id         String
     user            User            @relation(fields: [user_id], references: [id], onDelete: Cascade)

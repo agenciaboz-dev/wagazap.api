@@ -32,7 +32,7 @@ router.post("/", async (request: CompanyRequest & UserRequest, response: Respons
 
     try {
         const bot = await request.company!.createBot(data)
-        Log.new({ company_id: data.company_id, user_id: request.user!.id, color: "success", text: `criou o chatbot ${bot.name}` })
+        Log.new({ company_id: data.company_id, user_id: request.user!.id, text: `criou o chatbot ${bot.name}`, type: "chatbot" })
 
         response.json(bot)
     } catch (error) {
@@ -59,7 +59,7 @@ router.patch("/", async (request: BotRequest & UserRequest, response: Response) 
     try {
         const bot = request.bot!
         await bot.update(data)
-        Log.new({ company_id: bot.company_id, user_id: request.user!.id, color: "info", text: `editou o chatbot ${bot.name}` })
+        Log.new({ company_id: bot.company_id, user_id: request.user!.id, type: "chatbot", text: `editou o chatbot ${bot.name}` })
         response.json(request.bot)
     } catch (error) {
         console.log(error)
@@ -71,7 +71,7 @@ router.delete("/", async (request: BotRequest & UserRequest, response: Response)
     try {
         const bot = request.bot!
         await bot.delete()
-        Log.new({ company_id: bot.company_id, user_id: request.user!.id, color: "error", text: `deletou o chatbot ${bot.name}` })
+        Log.new({ company_id: bot.company_id, user_id: request.user!.id, type: "chatbot", text: `deletou o chatbot ${bot.name}` })
         response.status(201).send()
     } catch (error) {
         console.log(error)

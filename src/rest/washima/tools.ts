@@ -54,7 +54,7 @@ router.delete("/media", async (request: UserRequest, response: Response) => {
                 company_id: washima.companies[0].id,
                 user_id: request.user!.id,
                 text: `deletou todas as mídias de ${washima.name} - ${washima.number} no Business`,
-                color: "error",
+                type: "washima",
             })
         }
 
@@ -76,7 +76,7 @@ router.delete("/messages", async (request: UserRequest, response: Response) => {
                 company_id: washima.companies[0].id,
                 user_id: request.user!.id,
                 text: `deletou todas as mensagens de ${washima.name} - ${washima.number} no Business`,
-                color: "error",
+                type: "washima",
             })
         }
         response.json(deletion_count)

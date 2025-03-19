@@ -188,7 +188,7 @@ router.post("/", async (request: UserRequest, response: Response) => {
             company_id: data.company_id,
             user_id: request.user!.id,
             text: `adicionou ${data.name} - ${data.number} no Business`,
-            color: "success",
+            type: "washima",
         })
         response.json(washima)
 
@@ -214,7 +214,7 @@ router.patch("/", async (request: UserRequest, response: Response) => {
                 company_id: washima.companies[0].id,
                 user_id: request.user!.id,
                 text: `editou ${washima.name} - ${washima.number} no Business`,
-                color: "info",
+                type: "washima",
             })
         }
         response.json(washima)
@@ -234,7 +234,7 @@ router.delete("/", async (request: UserRequest, response: Response) => {
                 company_id: washima.companies[0].id,
                 user_id: request.user!.id,
                 text: `deletou ${washima.name} - ${washima.number} no Business`,
-                color: "error",
+                type: "washima",
             })
         }
         response.json(washima)
@@ -256,7 +256,7 @@ router.post("/restart", async (request: UserRequest, response: Response) => {
                 company_id: washima.companies[0].id,
                 user_id: request.user!.id,
                 text: `reiniciou ${washima.name} - ${washima.number} no Business`,
-                color: "warning",
+                type: "washima",
             })
         }
 

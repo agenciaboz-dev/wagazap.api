@@ -6,15 +6,15 @@ import { now } from "lodash"
 
 export const log_include = Prisma.validator<Prisma.LogInclude>()({ user: true })
 export type LogPrisma = Prisma.LogGetPayload<{ include: typeof log_include }>
-export type MuiColor = "primary" | "secondary" | "info" | "warning" | "error" | "success"
 
-export type LogForm = Omit<WithoutFunctions<Log>, "id" | "user" | "timestamp" | "color"> & { color?: MuiColor }
+export type LogForm = Omit<WithoutFunctions<Log>, "id" | "user" | "timestamp" | "type"> & { type?: LogType }
+export type LogType = "washima" | "nagazap" | "chatbot" | "users" | "default"
 
 export class Log {
     id: string
     timestamp: number
     text: string
-    color: MuiColor
+    type: LogType
     user_id: string
     user: User
     company_id: string
@@ -25,7 +25,7 @@ export class Log {
                 data: {
                     text: data.text,
                     timestamp: now().toString(),
-                    color: data.color,
+                    type: data.type,
                     company_id: data.company_id,
                     user_id: data.user_id,
                 },
@@ -43,7 +43,7 @@ export class Log {
         this.id = data.id
         this.timestamp = Number(data.timestamp)
         this.text = data.text
-        this.color = data.color as MuiColor
+        this.type = data.type as LogType
         this.user_id = data.user_id
         this.user = new User(data.user)
         this.company_id = data.company_id

@@ -97,7 +97,7 @@ router.post("/", async (request: UserRequest, response: Response) => {
             company_id: data.companyId,
             user_id: request.user!.id,
             text: `cadastrou a conta ${nagazap.displayName} - ${nagazap.displayPhone} no Broadcast`,
-            color: "success",
+            type: "nagazap",
         })
         response.json(nagazap)
     } catch (error) {
@@ -117,7 +117,7 @@ router.patch("/", async (request: NagazapRequest & UserRequest, response: Respon
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `editou configurações de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "info",
+            type: 'nagazap',
         })
         response.json(request.nagazap)
     } catch (error) {
@@ -133,7 +133,7 @@ router.delete("/", async (request: NagazapRequest & UserRequest, response: Respo
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `deletou ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "error",
+            type: 'nagazap',
         })
         response.json(deleted)
     } catch (error) {
@@ -150,7 +150,7 @@ router.get("/pause", async (request: NagazapRequest & UserRequest, response: Res
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `pausou o forno da conta ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "info",
+            type: 'nagazap',
         })
         response.json(nagazap)
     } catch (error) {
@@ -167,7 +167,7 @@ router.get("/start", async (request: NagazapRequest & UserRequest, response: Res
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `ligou o forno da conta ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "info",
+            type: 'nagazap',
         })
         response.json(nagazap)
     } catch (error) {
@@ -184,7 +184,7 @@ router.get("/clearOven", async (request: NagazapRequest & UserRequest, response:
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `limpou o forno da conta ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "warning",
+            type: 'nagazap',
         })
         response.json(nagazap)
     } catch (error) {
@@ -203,7 +203,7 @@ router.delete("/blacklist", async (request: NagazapRequest & UserRequest, respon
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `removeu o número ${data.number} da lista negra de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "warning",
+            type: 'nagazap',
         })
         response.json(nagazap)
     } catch (error) {
@@ -222,7 +222,7 @@ router.patch("/token", async (request: NagazapRequest & UserRequest, response: R
                 company_id: request.nagazap!.companyId,
                 user_id: request.user!.id,
                 text: `alterou o Token de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-                color: "warning",
+                type: 'nagazap',
             })
             response.json(nagazap)
         } catch (error) {
@@ -284,7 +284,7 @@ router.post("/template", async (request: NagazapRequest & UserRequest, response:
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `criou um Template em ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "success",
+            type: 'nagazap',
         })
         response.json({ template_response, csv_model })
     } catch (error) {
@@ -335,7 +335,7 @@ router.patch("/template", async (request: NagazapRequest & UserRequest, response
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `Alterou um Template em ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "info",
+            type: 'nagazap',
         })
         response.json({ template_response, csv_model })
     } catch (error) {
@@ -411,7 +411,7 @@ router.post("/oven", async (request: NagazapRequest & UserRequest, response: Res
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `adicionou ${data.to.length} números no forno de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "warning",
+            type: 'nagazap',
         })
 
         response.status(201).send()
@@ -432,7 +432,7 @@ router.post("/sync-templates", async (request: NagazapRequest & UserRequest, res
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `sincronizou os templates de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "info",
+            type: 'nagazap',
         })
         response.status(201).send()
     } catch (error) {
@@ -453,7 +453,7 @@ router.delete("/template", async (request: NagazapRequest & UserRequest, respons
             company_id: request.nagazap!.companyId,
             user_id: request.user!.id,
             text: `deletou o template ${template.info.name} de ${request.nagazap!.displayName} - ${request.nagazap!.displayPhone} no Broadcast`,
-            color: "info",
+            type: 'nagazap',
         })
         response.status(201).send()
     } catch (error) {
