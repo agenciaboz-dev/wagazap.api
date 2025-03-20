@@ -1,14 +1,14 @@
 import { Prisma } from "@prisma/client"
-import { User } from "./User"
+import { User, user_include } from "./User"
 import { WithoutFunctions } from "./helpers"
 import { prisma } from "../prisma"
 import { now } from "lodash"
 
-export const log_include = Prisma.validator<Prisma.LogInclude>()({ user: true })
+export const log_include = Prisma.validator<Prisma.LogInclude>()({ user: { include: user_include } })
 export type LogPrisma = Prisma.LogGetPayload<{ include: typeof log_include }>
 
 export type LogForm = Omit<WithoutFunctions<Log>, "id" | "user" | "timestamp" | "type"> & { type?: LogType }
-export type LogType = "washima" | "nagazap" | "chatbot" | "users" | "default"
+export type LogType = "washima" | "nagazap" | "chatbot" | "users" | "default" | "departments"
 
 export class Log {
     id: string

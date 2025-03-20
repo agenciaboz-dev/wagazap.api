@@ -3,11 +3,13 @@ import { Company, CompanyForm } from "../../class/Company"
 import stats from "./stats"
 import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompanyId"
 import bots from "./bots"
+import departments from "./departments"
 
 const router = express.Router()
 
 router.use("/stats", stats)
 router.use("/bots", bots)
+router.use("/departments", departments)
 
 router.post("/", async (request: Request, response: Response) => {
     const data = request.body as CompanyForm

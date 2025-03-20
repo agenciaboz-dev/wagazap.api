@@ -1,13 +1,14 @@
 import { Prisma } from "@prisma/client"
 import { LoginForm } from "../types/shared/LoginForm"
 import { prisma } from "../prisma"
-import { uid } from "uid"
 import { WithoutFunctions } from "./helpers"
 import { getIoInstance } from "../io/socket"
+import { Department, department_include } from "./Department"
 
-export type UserPrisma = Prisma.UserGetPayload<{}>
+export const user_include = Prisma.validator<Prisma.UserInclude>()({ departments: { include: department_include } })
+export type UserPrisma = Prisma.UserGetPayload<{ include: typeof user_include }>
 
-export type UserForm = Omit<WithoutFunctions<User>, "id" | "active"> & { company_id: string; active?: boolean }
+export type UserForm = Omit<WithoutFunctions<User>, "id" | "active" | "departments"> & { company_id: string; active?: boolean }
 
 export interface UserNotification {
     title: string
@@ -23,6 +24,7 @@ export class User {
     owner: boolean
     company_id: string
     active: boolean
+    departments: Department[]
 
     static async new(data: UserForm) {
         const new_user = await prisma.user.create({
@@ -34,37 +36,38 @@ export class User {
                 admin: data.admin,
                 owner: data.owner,
             },
+            include: user_include,
         })
 
         return new User(new_user)
     }
 
     static async login(data: LoginForm) {
-        const result = await prisma.user.findFirst({ where: { email: data.login, password: data.password } })
+        const result = await prisma.user.findFirst({ where: { email: data.login, password: data.password }, include: user_include })
         if (result) return new User(result)
 
         return null
     }
 
     static async getAll() {
-        const data = await prisma.user.findMany()
+        const data = await prisma.user.findMany({ include: user_include })
         return data.map((item) => new User(item))
     }
 
     static async findById(id: string) {
-        const data = await prisma.user.findFirst({ where: { id } })
+        const data = await prisma.user.findFirst({ where: { id }, include: user_include })
         if (data) return new User(data)
         return null
     }
 
     static async findByEmail(email: string) {
-        const data = await prisma.user.findFirst({ where: { email } })
+        const data = await prisma.user.findFirst({ where: { email }, include: user_include })
         if (data) return new User(data)
         return null
     }
 
     static async delete(user_id: string) {
-        const result = await prisma.user.delete({ where: { id: user_id } })
+        const result = await prisma.user.delete({ where: { id: user_id }, include: user_include })
         return new User(result)
     }
 
@@ -77,6 +80,7 @@ export class User {
         this.owner = data.owner
         this.company_id = data.company_id
         this.active = data.active
+        this.departments = data.departments?.map((item) => new Department(item)) || []
     }
 
     load(data: UserPrisma) {
@@ -88,6 +92,7 @@ export class User {
         this.owner = data.owner
         this.company_id = data.company_id
         this.active = data.active
+        this.departments = data.departments?.map((item) => new Department(item)) || []
     }
 
     async update(data: Partial<User>) {
@@ -99,7 +104,9 @@ export class User {
                 name: data.name,
                 password: data.password,
                 active: data.active,
+                departments: data.departments ? { set: [], connect: data.departments.map((item) => ({ id: item.id })) } : undefined,
             },
+            include: user_include,
         })
 
         this.load(updated)

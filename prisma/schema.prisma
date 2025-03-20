@@ -126,6 +126,7 @@ model User {
     company     Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
 
     logs        Log[]
+    departments Department[]
 }
 model Company {
     id              String          @id @default(uuid()) 
@@ -134,11 +135,22 @@ model Company {
     document         String
     address         Json
 
+    departments     Department[]
     users            User[]
     washimas        Washima[]
     nagazaps        Nagazap[]
     bots            Bot[]
     logs            Log[]
+}
+
+model Department {
+    id              String          @id @default(uuid())
+    name            String
+
+    company_id      String
+    company         Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
+    users           User[]
+    
 }
 
 model NagazapLink {
@@ -195,3 +207,10 @@ model NagaTemplate {
     nagazap         Nagazap         @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 
 }
+
+// model Boards {
+//     id              String          @id @default(uuid())
+//     name            String
+//     created_at      String
+
+// }

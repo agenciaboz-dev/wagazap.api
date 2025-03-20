@@ -23,7 +23,7 @@ import * as csvWriter from "csv-writer"
 import { slugify } from "../tools/slugify"
 import { ObjectStringifierHeader } from "csv-writer/src/lib/record"
 import path from "path"
-import { Company } from "./Company"
+import { Company, company_include } from "./Company"
 import { Socket } from "socket.io"
 import { NagazapLink } from "./NagazapLink"
 import { getLocalUrl } from "../tools/getLocalUrl"
@@ -36,7 +36,7 @@ export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
 export type NagaTemplatePrisma = Prisma.NagaTemplateGetPayload<{}>
-export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: true })
+export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: { include: company_include } })
 export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
 export interface NagazapResponseForm {
     number: string

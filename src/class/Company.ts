@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "../prisma"
-import { User, UserForm } from "./User"
+import { User, user_include, UserForm } from "./User"
 import { Washima } from "./Washima/Washima"
 import numeral from "numeral"
 import { Nagazap, nagazap_include } from "./Nagazap"
@@ -8,11 +8,12 @@ import { WithoutFunctions } from "./helpers"
 import { Address } from "./Address"
 import { Bot, bot_include, BotForm } from "./Bot/Bot"
 import { Log, log_include } from "./Log"
+import { Department, department_include, DepartmentForm } from "./Department"
 
-// export const company_include = Prisma.validator<Prisma.CompanyInclude>()({users: true})
-export type CompanyPrisma = Prisma.CompanyGetPayload<{}>
+export const company_include = Prisma.validator<Prisma.CompanyInclude>()({ departments: { include: department_include } })
+export type CompanyPrisma = Prisma.CompanyGetPayload<{ include: typeof company_include }>
 
-export type CompanyForm = Omit<WithoutFunctions<Company>, "id" | "address"> & {
+export type CompanyForm = Omit<WithoutFunctions<Company>, "id" | "address" | "departments"> & {
     address: WithoutFunctions<Address>
     user: UserForm
 }
@@ -23,16 +24,17 @@ export class Company {
     business_name: string
     document: string
     address: Address
+    departments: Department[]
 
     static async getById(company_id: string) {
-        const result = await prisma.company.findUnique({ where: { id: company_id } })
+        const result = await prisma.company.findUnique({ where: { id: company_id }, include: company_include })
         if (!result) throw "empresa não encontrada"
         const company = new Company(result)
         return company
     }
 
     static async getCompaniesFromWashimaId(washima_id: string) {
-        const data = await prisma.company.findMany({ where: { washimas: { some: { id: washima_id } } } })
+        const data = await prisma.company.findMany({ where: { washimas: { some: { id: washima_id } } }, include: company_include })
         return data.map((item) => new Company(item))
     }
 
@@ -44,6 +46,7 @@ export class Company {
                 document: data.document,
                 full_name: data.full_name,
             },
+            include: company_include,
         })
 
         const company = new Company(result)
@@ -54,11 +57,13 @@ export class Company {
     }
 
     constructor(data: CompanyPrisma) {
+        console.log(data)
         this.id = data.id
         this.full_name = data.full_name
         this.business_name = data.business_name
         this.document = data.document
         this.address = JSON.parse(data.address as string)
+        this.departments = data.departments?.map((item) => new Department(item)) || []
     }
 
     async newUser(data: UserForm) {
@@ -67,7 +72,7 @@ export class Company {
     }
 
     async getUsers() {
-        const result = await prisma.user.findMany({ where: { company_id: this.id } })
+        const result = await prisma.user.findMany({ where: { company_id: this.id }, include: user_include })
         const users = result.map((user) => new User(user))
         return users
     }
@@ -161,5 +166,14 @@ export class Company {
     async getLogs() {
         const result = await prisma.log.findMany({ where: { company_id: this.id }, include: log_include })
         return result.map((item) => new Log(item))
+    }
+
+    async newDepartment(data: DepartmentForm) {
+        const result = await prisma.department.create({
+            data: { name: data.name, company_id: this.id, users: { connect: data.users?.map((item) => ({ id: item.id })) } },
+            include: department_include,
+        })
+        const department = new Department(result)
+        return department
     }
 }
