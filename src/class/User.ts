@@ -4,6 +4,7 @@ import { prisma } from "../prisma"
 import { WithoutFunctions } from "./helpers"
 import { getIoInstance } from "../io/socket"
 import { Department, department_include } from "./Department"
+import { Board } from "./Board/Board"
 
 export const user_include = Prisma.validator<Prisma.UserInclude>()({ departments: { include: department_include } })
 export type UserPrisma = Prisma.UserGetPayload<{ include: typeof user_include }>
@@ -115,5 +116,21 @@ export class User {
     notify(reason: string, data: UserNotification) {
         const io = getIoInstance()
         io.emit(`user:${this.id}:notify:${reason}`, data)
+    }
+
+    async getBoards() {
+        let boards: Board[]
+        if (this.admin) {
+            const result = await prisma.board.findMany({ where: { company_id: this.company_id } })
+            boards = result.map((item) => new Board(item))
+        } else {
+            const result = await prisma.board.findMany({
+                where: { OR: [{ users: { some: { id: this.id } } }, { departments: { some: { users: { some: { id: this.id } } } } }] },
+            })
+            boards = result.map((item) => new Board(item))
+        }
+
+        await Promise.all(boards.map(async (board) => await board.init()))
+        return boards
     }
 }

@@ -18,6 +18,7 @@ import numeral from "numeral"
 import { Company } from "../Company"
 import { Bot } from "../Bot/Bot"
 import { sleep } from "../../tools/sleep"
+import { Board } from "../Board/Board"
 // import numeral from 'numeral'
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
@@ -433,6 +434,8 @@ export class Washima {
                             )
                         })
                     }
+
+                    Board.handleWashimaNewMessage({ chat, company_id: this.companies[0].id, message: washima_message, washima: this })
                 } catch (error) {
                     // console.log({ error })
                 }

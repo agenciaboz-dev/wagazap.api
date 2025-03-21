@@ -127,6 +127,7 @@ model User {
 
     logs        Log[]
     departments Department[]
+    boards          Board[]
 }
 model Company {
     id              String          @id @default(uuid()) 
@@ -141,6 +142,7 @@ model Company {
     nagazaps        Nagazap[]
     bots            Bot[]
     logs            Log[]
+    boards          Board[]
 }
 
 model Department {
@@ -150,6 +152,7 @@ model Department {
     company_id      String
     company         Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
     users           User[]
+    boards          Board[]
     
 }
 
@@ -208,9 +211,18 @@ model NagaTemplate {
 
 }
 
-// model Boards {
-//     id              String          @id @default(uuid())
-//     name            String
-//     created_at      String
+model Board {
+    id              String          @id @default(uuid())
+    name            String
+    created_at      String
+    rooms           Json
+    receive_washima_message Json
 
-// }
+    entry_room_id   String
+
+    company_id      String
+    company         Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
+    departments     Department[]
+    users           User[]
+
+}
