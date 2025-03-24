@@ -130,7 +130,6 @@ export class User {
             boards = result.map((item) => new Board(item))
         }
 
-        await Promise.all(boards.map(async (board) => await board.init()))
         return boards
     }
 }
