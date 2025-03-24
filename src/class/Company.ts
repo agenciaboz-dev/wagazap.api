@@ -57,7 +57,6 @@ export class Company {
     }
 
     constructor(data: CompanyPrisma) {
-        console.log(data)
         this.id = data.id
         this.full_name = data.full_name
         this.business_name = data.business_name

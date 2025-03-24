@@ -5,6 +5,7 @@ import { Server as HttpsServer } from "https"
 import { Washima, WashimaMediaForm } from "../class/Washima/Washima"
 import { WashimaMessage } from "../class/Washima/WashimaMessage"
 import { Nagazap, NagazapResponseForm } from "../class/Nagazap"
+import { Board } from "../class/Board/Board"
 
 let io: SocketIoServer | null = null
 
@@ -42,4 +43,6 @@ export const handleSocket = (socket: Socket) => {
     )
 
     socket.on("nagazap:response", (nagazap_id: string, data: NagazapResponseForm) => Nagazap.sendResponse(nagazap_id, data))
+
+    Board.handleSocket(socket)
 }

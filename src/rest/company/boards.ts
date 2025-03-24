@@ -39,4 +39,18 @@ router.post("/", async (request: UserCompanyRequest, response: Response) => {
     }
 })
 
+router.delete("/", async (request: UserCompanyRequest, response: Response) => {
+    const { board_id } = request.query
+
+    try {
+        const board = await Board.find(board_id as string)
+        await board.delete()
+        Log.new({ company_id: request.company!.id, text: `deletou o quadro ${board.name}`, user_id: request.user!.id, type: "default" })
+        return response.json(board)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 export default router

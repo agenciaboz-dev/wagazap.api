@@ -9,6 +9,7 @@ import { Chat, ChatDto } from "./Chat"
 import WAWebJS from "whatsapp-web.js"
 import { Washima } from "../Washima/Washima"
 import { WashimaMessage } from "../Washima/WashimaMessage"
+import { Socket } from "socket.io"
 
 export type BoardPrisma = Prisma.BoardGetPayload<{}>
 export interface BoardForm {
@@ -42,6 +43,18 @@ export class Board {
     //         if (board.rooms)
     //     }
     // }
+
+    static handleSocket(socket: Socket) {
+        socket.on("board:subscribe", (board_id: string) => socket.join(board_id))
+        socket.on("board:unsubscribe", (board_id: string) => socket.leave(board_id))
+        socket.on("board:update", async (boardDto: Board) => {
+            console.log("board being updated")
+            const board = await Board.find(boardDto.id)
+            console.log({ boardDto })
+            board.update(boardDto)
+            socket.to(boardDto.id).emit("board:update", boardDto)
+        })
+    }
 
     static async handleWashimaNewMessage(data: HandleWashimaMessageDto) {
         const boards = await this.getCompanyBoards(data.company_id)
@@ -77,7 +90,20 @@ export class Board {
     }
 
     static async new(data: BoardForm, company_id: string) {
-        const initialRoom = new Room({ id: uid(), name: "Sala 1", chats: [], entry_point: true })
+        const messages = (await prisma.washimaMessage.findMany({ take: 4 })).map((item) => new WashimaMessage(item))
+        const chats = [1, 2, 3, 4].map(
+            (index) =>
+                new Chat({
+                    id: uid(),
+                    name: `conversa ${index}`,
+                    phone: `numero ${index}`,
+                    unread_count: 1,
+                    washima_chat_id: uid(),
+                    washima_id: "nenhum",
+                    last_message: messages[index - 1],
+                })
+        )
+        const initialRoom = new Room({ id: uid(), name: "Sala 1", chats: chats, entry_point: true })
         const result = await prisma.board.create({
             data: {
                 created_at: new Date().getTime().toString(),
