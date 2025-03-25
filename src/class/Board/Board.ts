@@ -175,7 +175,7 @@ export class Board {
     }
 
     async saveRooms() {
-        await this.update({ rooms: this.rooms })
+        await this.update({ rooms: this.rooms, receive_washima_message: this.receive_washima_message })
     }
 
     newRoom(data: RoomForm) {
@@ -186,6 +186,7 @@ export class Board {
 
     deleteRoom(room_id: string) {
         this.rooms = this.rooms.filter((room) => room.id !== room_id)
+
         this.saveRooms()
     }
 
@@ -228,7 +229,7 @@ export class Board {
         if (roomWithChat) {
             await roomWithChat.newMessage(chat)
         } else {
-            this.newChat(chat)
+            this.newChat(chat, washima_setting.room_id)
         }
 
         const io = getIoInstance()
@@ -243,7 +244,7 @@ export class Board {
             (current_setting) => !data.find((item) => item.washima_id === current_setting.washima_id)
         )
 
-        console.log({ newSettings, deletedSettings })
+        console.log({ newSettings, deletedSettings, data })
 
         await Promise.all(deletedSettings.map(async (setting) => await this.unsyncWashima(setting)))
         await Promise.all(newSettings.map(async (setting) => await this.syncWashima(setting)))
@@ -270,7 +271,6 @@ export class Board {
             for (const message of messages) {
                 const chatIndex = chats.findIndex((chat) => chat.washima_chat_id === message.chat_id)
 
-                console.log(`${message.from}`)
                 if (message.from === "0@c.us") {
                     continue
                 }
