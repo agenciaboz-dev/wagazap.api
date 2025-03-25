@@ -679,6 +679,10 @@ export class Washima {
                 const messages = await chat.fetchMessages({ limit: Number.MAX_VALUE })
 
                 for (const [index, message] of messages.entries()) {
+                    if (message.from === "0@c.us") {
+                        continue
+                    }
+                    
                     console.log(`fetching message ${index + 1}/${messages.length} from chat ${chat_index + 1}/${chats.length}`)
                     io.emit(`washima:${this.id}:sync:messages`, index + 1, messages.length)
 

@@ -10,6 +10,7 @@ import WAWebJS from "whatsapp-web.js"
 import { Washima } from "../Washima/Washima"
 import { WashimaMessage } from "../Washima/WashimaMessage"
 import { Socket } from "socket.io"
+import { getIoInstance } from "../../io/socket"
 
 export type BoardPrisma = Prisma.BoardGetPayload<{}>
 export interface BoardForm {
@@ -34,6 +35,7 @@ export class Board {
     created_at: string
     rooms: Room[]
     entry_room_id: string
+    entry_room_index: number
     company_id: string
     receive_washima_message: BoardWashimaSettings[]
 
@@ -90,20 +92,20 @@ export class Board {
     }
 
     static async new(data: BoardForm, company_id: string) {
-        const messages = (await prisma.washimaMessage.findMany({ take: 4 })).map((item) => new WashimaMessage(item))
-        const chats = [1, 2, 3, 4].map(
-            (index) =>
-                new Chat({
-                    id: uid(),
-                    name: `conversa ${index}`,
-                    phone: `numero ${index}`,
-                    unread_count: 1,
-                    washima_chat_id: uid(),
-                    washima_id: "nenhum",
-                    last_message: messages[index - 1],
-                })
-        )
-        const initialRoom = new Room({ id: uid(), name: "Sala 1", chats: chats, entry_point: true })
+        // const messages = (await prisma.washimaMessage.findMany({ take: 4 })).map((item) => new WashimaMessage(item))
+        // const chats = [1, 2, 3, 4].map(
+        //     (index) =>
+        //         new Chat({
+        //             id: uid(),
+        //             name: `conversa ${index}`,
+        //             phone: `numero ${index}`,
+        //             unread_count: 1,
+        //             washima_chat_id: uid(),
+        //             washima_id: "nenhum",
+        //             last_message: messages[index - 1],
+        //         })
+        // )
+        const initialRoom = new Room({ id: uid(), name: "Sala 1", chats: [], entry_point: true })
         const result = await prisma.board.create({
             data: {
                 created_at: new Date().getTime().toString(),
@@ -127,6 +129,7 @@ export class Board {
         this.rooms = JSON.parse(data.rooms as string).map((room: RoomDto) => new Room(room))
         this.entry_room_id = data.entry_room_id
         this.receive_washima_message = JSON.parse(data.receive_washima_message as string)
+        this.entry_room_index = this.getEntryRoomIndex()
     }
 
     load(data: BoardPrisma) {
@@ -137,6 +140,18 @@ export class Board {
         this.rooms = JSON.parse(data.rooms as string).map((room: RoomDto) => new Room(room))
         this.entry_room_id = data.entry_room_id
         this.receive_washima_message = JSON.parse(data.receive_washima_message as string)
+        this.entry_room_index = this.getEntryRoomIndex()
+    }
+
+    getEntryRoom() {
+        const room = this.rooms.find((item) => item.id === this.entry_room_id)
+        if (!room) throw "Nenhuma sala padrão configurada"
+
+        return room
+    }
+
+    getEntryRoomIndex() {
+        return this.rooms.findIndex((room) => room.id === this.entry_room_id)
     }
 
     async update(data: Partial<WithoutFunctions<Board & { departments?: Department[]; users?: User[] }>>) {
@@ -148,6 +163,7 @@ export class Board {
                 rooms: data.rooms ? JSON.stringify(data.rooms) : undefined,
                 departments: data.departments ? { set: [], connect: data.departments.map((item) => ({ id: item.id })) } : undefined,
                 users: data.users ? { set: [], connect: data.users.map((item) => ({ id: item.id })) } : undefined,
+                receive_washima_message: data.receive_washima_message ? JSON.stringify(data.receive_washima_message) : undefined,
             },
         })
         this.load(result)
@@ -213,6 +229,81 @@ export class Board {
             await roomWithChat.newMessage(chat)
         } else {
             this.newChat(chat)
+        }
+
+        const io = getIoInstance()
+        io.to(this.id).emit("board:update", this)
+    }
+
+    async handleWashimaSettingsChange(data: BoardWashimaSettings[]) {
+        const newSettings = data.filter(
+            (washima_setting) => !this.receive_washima_message.find((item) => item.washima_id === washima_setting.washima_id)
+        )
+        const deletedSettings = this.receive_washima_message.filter(
+            (current_setting) => !data.find((item) => item.washima_id === current_setting.washima_id)
+        )
+
+        console.log({ newSettings, deletedSettings })
+
+        await Promise.all(deletedSettings.map(async (setting) => await this.unsyncWashima(setting)))
+        await Promise.all(newSettings.map(async (setting) => await this.syncWashima(setting)))
+
+        await this.saveRooms()
+        const io = getIoInstance()
+        io.to(this.id).emit("board:update", this)
+    }
+
+    async unsyncWashima(data: BoardWashimaSettings) {
+        console.log(`unsyncing ${data.washima_id}`)
+        this.rooms.forEach((room, index) => {
+            this.rooms[index].chats = room.chats.filter((chat) => chat.washima_id !== data.washima_id)
+        })
+    }
+
+    async syncWashima(data: BoardWashimaSettings) {
+        const washima = Washima.find(data.washima_id)
+        if (washima) {
+            console.log(`syncing ${washima.name}`)
+            const messages = await WashimaMessage.getWashimaMessages(data.washima_id)
+            const chats: Chat[] = []
+
+            for (const message of messages) {
+                const chatIndex = chats.findIndex((chat) => chat.washima_chat_id === message.chat_id)
+
+                console.log(`${message.from}`)
+                if (message.from === "0@c.us") {
+                    continue
+                }
+
+                if (chatIndex >= 0) {
+                    continue
+                }
+
+                const washima_chat = await washima.client.getChatById(message.chat_id)
+                if (washima_chat.unreadCount === 0) {
+                    continue
+                }
+
+                const lastMessage = (await WashimaMessage.getChatMessages(washima.id, washima_chat.id._serialized, washima_chat.isGroup, 0, 1))[0]
+
+                const contact = await washima_chat.getContact()
+                const profilePic = await washima.getCachedProfilePicture(washima_chat.id._serialized, "chat")
+                const chat = new Chat({
+                    id: uid(),
+                    last_message: lastMessage,
+                    name: contact.name || contact.pushname,
+                    phone: contact.number,
+                    unread_count: washima_chat.unreadCount,
+                    washima_chat_id: washima_chat.id._serialized,
+                    washima_id: data.washima_id,
+                    is_group: washima_chat.isGroup,
+                    profile_pic: profilePic?.url,
+                })
+                chats.push(chat)
+            }
+
+            const target_room_index = this.rooms.findIndex((room) => room.id === data.room_id || this.entry_room_id)
+            this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]
         }
     }
 }
