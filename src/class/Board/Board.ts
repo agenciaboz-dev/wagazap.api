@@ -228,8 +228,9 @@ export class Board {
 
         if (roomWithChat) {
             await roomWithChat.newMessage(chat)
+            await this.saveRooms()
         } else {
-            this.newChat(chat, washima_setting.room_id)
+            await this.newChat(chat, washima_setting.room_id)
         }
 
         const io = getIoInstance()
