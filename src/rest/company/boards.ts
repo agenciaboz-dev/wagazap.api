@@ -47,9 +47,9 @@ router.patch("/", async (request: BoardAuthRequest, response: Response) => {
     const data = request.body as Partial<Board>
 
     try {
-        if (data.receive_washima_message) {
+        if (data.washima_settings) {
             console.log("syncing washima with board")
-            await request.board!.handleWashimaSettingsChange(data.receive_washima_message)
+            await request.board!.handleWashimaSettingsChange(data.washima_settings)
         }
 
         await request.board!.update(data)

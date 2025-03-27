@@ -195,6 +195,7 @@ export class Washima {
             Washima.washimas = Washima.washimas.filter((item) => item.id !== washima_id)
             await deleteDirectory(`static/washima/auth/whatsapp.auth.${washima.id}`)
             await deleteDirectory(`static/washima/${washima.id}`)
+            Board.handleWashimaDelete({ washima_id, company_id: washima.companies[0].id })
             return washima
         }
     }
@@ -581,7 +582,10 @@ export class Washima {
             console.log("merda 6")
             io.emit("washima:update", this)
             console.log("merda 7")
-        } catch (error) {}
+        } catch (error) {
+            console.log("error initializing")
+            console.log(error)
+        }
     }
 
     async getMediaMeta(message_id: string) {

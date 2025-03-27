@@ -19,6 +19,13 @@ export interface BoardForm {
 
 export interface BoardWashimaSettings {
     washima_id: string
+    washima_name: string
+    room_id?: string
+}
+
+export interface BoardNagazapSettings {
+    nagazap_id: string
+    nagazap_name: string
     room_id?: string
 }
 
@@ -29,6 +36,11 @@ export interface HandleWashimaMessageDto {
     message: WashimaMessage
 }
 
+export interface HandleWashimaDeleteDto {
+    washima_id: string
+    company_id: string
+}
+
 export class Board {
     id: string
     name: string
@@ -37,7 +49,8 @@ export class Board {
     entry_room_id: string
     entry_room_index: number
     company_id: string
-    receive_washima_message: BoardWashimaSettings[]
+    washima_settings: BoardWashimaSettings[]
+    nagazap_settings: BoardNagazapSettings[] = []
 
     // static async getChatByWashimaChatId(washima_chat_id: string, company_id: string) {
     //     const boards = await this.getCompanyBoards(company_id)
@@ -121,6 +134,11 @@ export class Board {
         return board
     }
 
+    static async handleWashimaDelete(data: HandleWashimaDeleteDto) {
+        const boards = await this.getCompanyBoards(data.company_id)
+        boards.forEach((board) => board.handleWashimaDelete(data.washima_id))
+    }
+
     constructor(data: BoardPrisma) {
         this.id = data.id
         this.company_id = data.company_id
@@ -128,7 +146,7 @@ export class Board {
         this.created_at = data.created_at
         this.rooms = JSON.parse(data.rooms as string).map((room: RoomDto) => new Room(room))
         this.entry_room_id = data.entry_room_id
-        this.receive_washima_message = JSON.parse(data.receive_washima_message as string)
+        this.washima_settings = JSON.parse(data.receive_washima_message as string)
         this.entry_room_index = this.getEntryRoomIndex()
     }
 
@@ -139,7 +157,7 @@ export class Board {
         this.created_at = data.created_at
         this.rooms = JSON.parse(data.rooms as string).map((room: RoomDto) => new Room(room))
         this.entry_room_id = data.entry_room_id
-        this.receive_washima_message = JSON.parse(data.receive_washima_message as string)
+        this.washima_settings = JSON.parse(data.receive_washima_message as string)
         this.entry_room_index = this.getEntryRoomIndex()
     }
 
@@ -163,7 +181,7 @@ export class Board {
                 rooms: data.rooms ? JSON.stringify(data.rooms) : undefined,
                 departments: data.departments ? { set: [], connect: data.departments.map((item) => ({ id: item.id })) } : undefined,
                 users: data.users ? { set: [], connect: data.users.map((item) => ({ id: item.id })) } : undefined,
-                receive_washima_message: data.receive_washima_message ? JSON.stringify(data.receive_washima_message) : undefined,
+                receive_washima_message: data.washima_settings ? JSON.stringify(data.washima_settings) : undefined,
             },
         })
         this.load(result)
@@ -175,7 +193,7 @@ export class Board {
     }
 
     async saveRooms() {
-        await this.update({ rooms: this.rooms, receive_washima_message: this.receive_washima_message })
+        await this.update({ rooms: this.rooms, washima_settings: this.washima_settings })
     }
 
     newRoom(data: RoomForm) {
@@ -208,8 +226,12 @@ export class Board {
         }
     }
 
+    getWashimaSetting(washima_id: string) {
+        return this.washima_settings.find((item) => item.washima_id === washima_id)
+    }
+
     async handleWashimaMessage(chatDto: ChatDto) {
-        const washima_setting = this.receive_washima_message.find((item) => item.washima_id === chatDto.washima_id)
+        const washima_setting = this.getWashimaSetting(chatDto.washima_id)
         if (!washima_setting) return false
 
         let chat = new Chat(chatDto)
@@ -233,29 +255,25 @@ export class Board {
             await this.newChat(chat, washima_setting.room_id)
         }
 
-        const io = getIoInstance()
-        io.to(this.id).emit("board:update", this)
+        this.emit()
     }
 
     async handleWashimaSettingsChange(data: BoardWashimaSettings[]) {
-        const newSettings = data.filter(
-            (washima_setting) => !this.receive_washima_message.find((item) => item.washima_id === washima_setting.washima_id)
-        )
-        const deletedSettings = this.receive_washima_message.filter(
+        const newSettings = data.filter((washima_setting) => !this.washima_settings.find((item) => item.washima_id === washima_setting.washima_id))
+        const deletedSettings = this.washima_settings.filter(
             (current_setting) => !data.find((item) => item.washima_id === current_setting.washima_id)
         )
 
         console.log({ newSettings, deletedSettings, data })
 
-        await Promise.all(deletedSettings.map(async (setting) => await this.unsyncWashima(setting)))
+        deletedSettings.forEach(async (setting) => this.unsyncWashima(setting))
         await Promise.all(newSettings.map(async (setting) => await this.syncWashima(setting)))
 
         await this.saveRooms()
-        const io = getIoInstance()
-        io.to(this.id).emit("board:update", this)
+        this.emit()
     }
 
-    async unsyncWashima(data: BoardWashimaSettings) {
+    unsyncWashima(data: BoardWashimaSettings) {
         console.log(`unsyncing ${data.washima_id}`)
         this.rooms.forEach((room, index) => {
             this.rooms[index].chats = room.chats.filter((chat) => chat.washima_id !== data.washima_id)
@@ -306,5 +324,20 @@ export class Board {
             const target_room_index = this.rooms.findIndex((room) => room.id === data.room_id || this.entry_room_id)
             this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]
         }
+    }
+
+    handleWashimaDelete(washima_id: string) {
+        const washima_setting = this.getWashimaSetting(washima_id)
+        if (!washima_setting) return false
+
+        this.washima_settings = this.washima_settings.filter((item) => item.washima_id !== washima_id)
+        this.unsyncWashima(washima_setting)
+        this.saveRooms()
+        this.emit()
+    }
+
+    emit() {
+        const io = getIoInstance()
+        io.to(this.id).emit(`board:update`, this)
     }
 }
