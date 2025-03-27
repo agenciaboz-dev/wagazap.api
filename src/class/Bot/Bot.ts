@@ -175,12 +175,12 @@ export class Bot {
 
         let current_chat = this.getActiveChat(chat_id)
 
-        if (!current_chat && !!this.compareIncomingMessage(message)) {
+        if (!current_chat && this.compareIncomingMessage(message) !== undefined) {
             current_chat = this.newChat(chat_id)
         }
 
         if (current_chat) {
-            if (this.compareIncomingMessage(message, "reset")) {
+            if (this.compareIncomingMessage(message, "reset") !== undefined) {
                 this.closeChat(current_chat.chat_id)
                 await response("bot reiniciado")
                 return
@@ -207,7 +207,7 @@ export class Bot {
 
         console.log({ chat })
         if (incoming_message && chat) {
-            if (this.compareIncomingMessage(incoming_message, "reset")) {
+            if (this.compareIncomingMessage(incoming_message, "reset") !== undefined) {
                 return chat
             }
             if (this.getAnsweredNode(chat.current_node_id, incoming_message)) {
@@ -265,7 +265,9 @@ export class Bot {
 
     getAnsweredNode(node_id: string, incoming_message: string) {
         const children = this.getNodeChildren(node_id)
-        const response_node = children.find((item) => item.type === "response" && !!this.compareIncomingMessage(incoming_message, item.data.value))
+        const response_node = children.find(
+            (item) => item.type === "response" && this.compareIncomingMessage(incoming_message, item.data.value) !== undefined
+        )
         return response_node
     }
 
@@ -334,6 +336,8 @@ export class Bot {
     }
 
     compareIncomingMessage(message: string, trigger = this.trigger) {
+        if (trigger === "") return trigger
+        
         const potential_triggers = trigger.split(";").map((text) => text.trim())
         console.log({ potential_triggers })
 
