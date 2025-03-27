@@ -2,8 +2,8 @@ import { Prisma } from "@prisma/client"
 import { Room, RoomDto, RoomForm } from "./Room"
 import { prisma } from "../../prisma"
 import { WithoutFunctions } from "../helpers"
-import { Department } from "../Department"
-import { User } from "../User"
+import { Department, department_include } from "../Department"
+import { User, user_include } from "../User"
 import { uid } from "uid"
 import { Chat, ChatDto } from "./Chat"
 import WAWebJS from "whatsapp-web.js"
@@ -39,6 +39,11 @@ export interface HandleWashimaMessageDto {
 export interface HandleWashimaDeleteDto {
     washima_id: string
     company_id: string
+}
+
+export interface BoardAccess {
+    users: User[]
+    departments: Department[]
 }
 
 export class Board {
@@ -259,18 +264,33 @@ export class Board {
     }
 
     async handleWashimaSettingsChange(data: BoardWashimaSettings[]) {
-        const newSettings = data.filter((washima_setting) => !this.washima_settings.find((item) => item.washima_id === washima_setting.washima_id))
-        const deletedSettings = this.washima_settings.filter(
-            (current_setting) => !data.find((item) => item.washima_id === current_setting.washima_id)
-        )
+        return new Promise<boolean>(async (resolve) => {
+            const newSettings = data.filter(
+                (washima_setting) => !this.washima_settings.find((item) => item.washima_id === washima_setting.washima_id)
+            )
 
-        console.log({ newSettings, deletedSettings, data })
+            if (newSettings.length > 0) {
+                this.emit("sync:pending", undefined)
+                resolve(true)
+            }
 
-        deletedSettings.forEach(async (setting) => this.unsyncWashima(setting))
-        await Promise.all(newSettings.map(async (setting) => await this.syncWashima(setting)))
+            const deletedSettings = this.washima_settings.filter(
+                (current_setting) => !data.find((item) => item.washima_id === current_setting.washima_id)
+            )
 
-        await this.saveRooms()
-        this.emit()
+            console.log({ newSettings, deletedSettings, data })
+
+            deletedSettings.forEach(async (setting) => this.unsyncWashima(setting))
+            await Promise.all(newSettings.map(async (setting) => await this.syncWashima(setting)))
+
+            await this.saveRooms()
+            this.emit()
+            if (newSettings.length > 0) {
+                this.emit("sync:done", undefined)
+            }
+
+            resolve(true)
+        })
     }
 
     unsyncWashima(data: BoardWashimaSettings) {
@@ -321,7 +341,7 @@ export class Board {
                 chats.push(chat)
             }
 
-            const target_room_index = this.rooms.findIndex((room) => room.id === data.room_id || this.entry_room_id)
+            const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))
             this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]
         }
     }
@@ -336,8 +356,28 @@ export class Board {
         this.emit()
     }
 
-    emit() {
+    emit(event = "board:update", data: any = this) {
         const io = getIoInstance()
-        io.to(this.id).emit(`board:update`, this)
+        io.to(this.id).emit(event, data)
+    }
+
+    async getAccess() {
+        const users_result = await prisma.user.findMany({ where: { boards: { some: { id: this.id } } }, include: user_include })
+        const users = users_result.map((item) => new User(item))
+
+        const departments_result = await prisma.department.findMany({ where: { boards: { some: { id: this.id } } }, include: department_include })
+        const departments = departments_result.map((item) => new Department(item))
+
+        return { users, departments }
+    }
+
+    async changeAccess(access: BoardAccess) {
+        await prisma.board.update({
+            where: { id: this.id },
+            data: {
+                users: { set: [], connect: access.users.map((user) => ({ id: user.id })) },
+                departments: { set: [], connect: access.departments.map((department) => ({ id: department.id })) },
+            },
+        })
     }
 }

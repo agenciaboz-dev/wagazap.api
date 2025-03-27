@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from "express"
 import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
 import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompanyId"
-import { Board, BoardForm } from "../../class/Board/Board"
+import { Board, BoardAccess, BoardForm } from "../../class/Board/Board"
 import { Log } from "../../class/Log"
 import { BoardRequest, requireBoardId } from "../../middlewares/requireBoardId"
 
@@ -44,12 +44,15 @@ router.post("/", async (request: UserCompanyRequest, response: Response) => {
 router.use(requireBoardId)
 
 router.patch("/", async (request: BoardAuthRequest, response: Response) => {
-    const data = request.body as Partial<Board>
+    const data = request.body as Partial<Board> & { access?: BoardAccess }
 
     try {
         if (data.washima_settings) {
-            console.log("syncing washima with board")
             await request.board!.handleWashimaSettingsChange(data.washima_settings)
+        }
+
+        if (data.access) {
+            await request.board!.changeAccess(data.access)
         }
 
         await request.board!.update(data)
@@ -65,6 +68,16 @@ router.delete("/", async (request: BoardAuthRequest, response: Response) => {
         await request.board!.delete()
         Log.new({ company_id: request.company!.id, text: `deletou o quadro ${request.board!.name}`, user_id: request.user!.id, type: "default" })
         return response.json(request.board)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.get("/access", async (request: BoardAuthRequest, response: Response) => {
+    try {
+        const access = await request.board!.getAccess()
+        return response.json(access)
     } catch (error) {
         console.log(error)
         response.status(500).send(error)
