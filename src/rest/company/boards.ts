@@ -33,7 +33,7 @@ router.post("/", async (request: UserCompanyRequest, response: Response) => {
 
     try {
         const board = await Board.new(data, request.company!.id)
-        Log.new({ company_id: request.company!.id, text: `criou o quadro ${board.name}`, user_id: request.user!.id, type: "default" })
+        Log.new({ company_id: request.company!.id, text: `criou o quadro ${board.name}`, user_id: request.user!.id, type: "boards" })
         return response.json(board)
     } catch (error) {
         console.log(error)
@@ -51,6 +51,10 @@ router.patch("/", async (request: BoardAuthRequest, response: Response) => {
             await request.board!.handleWashimaSettingsChange(data.washima_settings)
         }
 
+        if (data.nagazap_settings) {
+            await request.board!.handleNagazapSettingsChange(data.nagazap_settings)
+        }
+
         if (data.access) {
             await request.board!.changeAccess(data.access)
         }
@@ -66,7 +70,7 @@ router.patch("/", async (request: BoardAuthRequest, response: Response) => {
 router.delete("/", async (request: BoardAuthRequest, response: Response) => {
     try {
         await request.board!.delete()
-        Log.new({ company_id: request.company!.id, text: `deletou o quadro ${request.board!.name}`, user_id: request.user!.id, type: "default" })
+        Log.new({ company_id: request.company!.id, text: `deletou o quadro ${request.board!.name}`, user_id: request.user!.id, type: "boards" })
         return response.json(request.board)
     } catch (error) {
         console.log(error)

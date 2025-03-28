@@ -8,7 +8,7 @@ export const log_include = Prisma.validator<Prisma.LogInclude>()({ user: { inclu
 export type LogPrisma = Prisma.LogGetPayload<{ include: typeof log_include }>
 
 export type LogForm = Omit<WithoutFunctions<Log>, "id" | "user" | "timestamp" | "type"> & { type?: LogType }
-export type LogType = "washima" | "nagazap" | "chatbot" | "users" | "default" | "departments"
+export type LogType = "washima" | "nagazap" | "chatbot" | "users" | "default" | "departments" | "boards"
 
 export class Log {
     id: string

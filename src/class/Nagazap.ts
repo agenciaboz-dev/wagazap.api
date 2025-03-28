@@ -31,6 +31,7 @@ import { randomUUID } from "crypto"
 import { Bot } from "./Bot/Bot"
 import { now } from "lodash"
 import { convertCsvToXlsx } from "@aternus/csv-to-xlsx"
+import { Board } from "./Board/Board"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
@@ -147,9 +148,11 @@ export class NagaMessage {
     text: string
     name: string
     type: NagaMessageType
+    nagazap_id: string
 
     constructor(data: NagaMessagePrisma) {
         this.id = data.id
+        this.nagazap_id = data.nagazap_id
         this.from = data.from
         this.timestamp = data.timestamp
         this.text = data.text
@@ -169,6 +172,13 @@ export interface NagazapForm {
     phoneId: string
     businessId: string
     companyId: string
+}
+
+export interface NagaChat {
+    name: string
+    messages: NagaMessage[]
+    from: string
+    lastMessage: NagaMessage
 }
 
 export class Nagazap {
@@ -408,6 +418,8 @@ export class Nagazap {
                 )
             })
         }
+
+        Board.handleNagazapNewMessage(message, this.companyId)
 
         return message
     }

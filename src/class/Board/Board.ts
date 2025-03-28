@@ -11,6 +11,7 @@ import { Washima } from "../Washima/Washima"
 import { WashimaMessage } from "../Washima/WashimaMessage"
 import { Socket } from "socket.io"
 import { getIoInstance } from "../../io/socket"
+import { NagaChat, NagaMessage, Nagazap } from "../Nagazap"
 
 export type BoardPrisma = Prisma.BoardGetPayload<{}>
 export interface BoardForm {
@@ -76,6 +77,22 @@ export class Board {
         })
     }
 
+    static async handleNagazapNewMessage(message: NagaMessage, company_id: string) {
+        const chat: ChatDto = {
+            id: uid(),
+            name: message.name,
+            phone: message.from,
+            nagazap_id: message.nagazap_id,
+            last_message: message,
+            unread_count: 1,
+        }
+
+        const boards = await this.getCompanyBoards(company_id)
+        for (const board of boards) {
+            await board.handleMessage(chat)
+        }
+    }
+
     static async handleWashimaNewMessage(data: HandleWashimaMessageDto) {
         const boards = await this.getCompanyBoards(data.company_id)
         const contact = await data.chat.getContact()
@@ -92,7 +109,7 @@ export class Board {
             unread_count: data.chat.unreadCount,
         }
         for (const board of boards) {
-            await board.handleWashimaMessage(chat)
+            await board.handleMessage(chat)
         }
     }
 
@@ -110,19 +127,6 @@ export class Board {
     }
 
     static async new(data: BoardForm, company_id: string) {
-        // const messages = (await prisma.washimaMessage.findMany({ take: 4 })).map((item) => new WashimaMessage(item))
-        // const chats = [1, 2, 3, 4].map(
-        //     (index) =>
-        //         new Chat({
-        //             id: uid(),
-        //             name: `conversa ${index}`,
-        //             phone: `numero ${index}`,
-        //             unread_count: 1,
-        //             washima_chat_id: uid(),
-        //             washima_id: "nenhum",
-        //             last_message: messages[index - 1],
-        //         })
-        // )
         const initialRoom = new Room({ id: uid(), name: "Sala 1", chats: [], entry_point: true })
         const result = await prisma.board.create({
             data: {
@@ -131,7 +135,8 @@ export class Board {
                 entry_room_id: initialRoom.id,
                 rooms: JSON.stringify([initialRoom]),
                 company_id,
-                receive_washima_message: JSON.stringify([]),
+                washima_settings: JSON.stringify([]),
+                nagazap_settings: JSON.stringify([]),
             },
         })
 
@@ -151,7 +156,8 @@ export class Board {
         this.created_at = data.created_at
         this.rooms = JSON.parse(data.rooms as string).map((room: RoomDto) => new Room(room))
         this.entry_room_id = data.entry_room_id
-        this.washima_settings = JSON.parse(data.receive_washima_message as string)
+        this.washima_settings = JSON.parse(data.washima_settings as string)
+        this.nagazap_settings = JSON.parse(data.nagazap_settings as string)
         this.entry_room_index = this.getEntryRoomIndex()
     }
 
@@ -162,7 +168,8 @@ export class Board {
         this.created_at = data.created_at
         this.rooms = JSON.parse(data.rooms as string).map((room: RoomDto) => new Room(room))
         this.entry_room_id = data.entry_room_id
-        this.washima_settings = JSON.parse(data.receive_washima_message as string)
+        this.washima_settings = JSON.parse(data.washima_settings as string)
+        this.nagazap_settings = JSON.parse(data.nagazap_settings as string)
         this.entry_room_index = this.getEntryRoomIndex()
     }
 
@@ -186,7 +193,8 @@ export class Board {
                 rooms: data.rooms ? JSON.stringify(data.rooms) : undefined,
                 departments: data.departments ? { set: [], connect: data.departments.map((item) => ({ id: item.id })) } : undefined,
                 users: data.users ? { set: [], connect: data.users.map((item) => ({ id: item.id })) } : undefined,
-                receive_washima_message: data.washima_settings ? JSON.stringify(data.washima_settings) : undefined,
+                washima_settings: data.washima_settings ? JSON.stringify(data.washima_settings) : undefined,
+                nagazap_settings: data.nagazap_settings ? JSON.stringify(data.nagazap_settings) : undefined,
             },
         })
         this.load(result)
@@ -198,7 +206,7 @@ export class Board {
     }
 
     async saveRooms() {
-        await this.update({ rooms: this.rooms, washima_settings: this.washima_settings })
+        await this.update({ rooms: this.rooms, washima_settings: this.washima_settings, nagazap_settings: this.nagazap_settings })
     }
 
     newRoom(data: RoomForm) {
@@ -231,18 +239,22 @@ export class Board {
         }
     }
 
-    getWashimaSetting(washima_id: string) {
+    getWashimaSetting(washima_id?: string) {
         return this.washima_settings.find((item) => item.washima_id === washima_id)
     }
 
-    async handleWashimaMessage(chatDto: ChatDto) {
-        const washima_setting = this.getWashimaSetting(chatDto.washima_id)
-        if (!washima_setting) return false
+    getNagazapSetting(nagazap_id?: string) {
+        return this.nagazap_settings.find((item) => item.nagazap_id === nagazap_id)
+    }
+
+    async handleMessage(chatDto: ChatDto) {
+        const setting = this.getWashimaSetting(chatDto.washima_id) || this.getNagazapSetting(chatDto.nagazap_id)
+        if (!setting) return false
 
         let chat = new Chat(chatDto)
         const roomWithChat = this.rooms.find((room) =>
             room.chats.find((item) => {
-                if (item.washima_chat_id === chatDto.washima_chat_id) {
+                if (item.washima_chat_id === chatDto.washima_chat_id || (item.nagazap_id && item.phone === chatDto.phone)) {
                     chat = item
                     chat.unread_count = chatDto.unread_count
                     chat.profile_pic = chatDto.profile_pic
@@ -257,7 +269,7 @@ export class Board {
             await roomWithChat.newMessage(chat)
             await this.saveRooms()
         } else {
-            await this.newChat(chat, washima_setting.room_id)
+            await this.newChat(chat, setting.room_id)
         }
 
         this.emit()
@@ -283,12 +295,14 @@ export class Board {
             deletedSettings.forEach(async (setting) => this.unsyncWashima(setting))
             await Promise.all(newSettings.map(async (setting) => await this.syncWashima(setting)))
 
+            this.washima_settings = data
             await this.saveRooms()
             this.emit()
             if (newSettings.length > 0) {
                 this.emit("sync:done", undefined)
             }
 
+            console.log("synced")
             resolve(true)
         })
     }
@@ -340,6 +354,81 @@ export class Board {
                 })
                 chats.push(chat)
             }
+
+            const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))
+            this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]
+        }
+    }
+
+    async handleNagazapSettingsChange(data: BoardNagazapSettings[]) {
+        return new Promise<boolean>(async (resolve) => {
+            const newSettings = data.filter(
+                (nagazap_setting) => !this.nagazap_settings.find((item) => item.nagazap_id === nagazap_setting.nagazap_id)
+            )
+
+            if (newSettings.length > 0) {
+                this.emit("sync:pending", undefined)
+                resolve(true)
+            }
+
+            const deletedSettings = this.nagazap_settings.filter(
+                (current_setting) => !data.find((item) => item.nagazap_id === current_setting.nagazap_id)
+            )
+
+            console.log({ newSettings, deletedSettings, data })
+            this.nagazap_settings = data
+
+            deletedSettings.forEach(async (setting) => this.unsyncNagazap(setting))
+            await Promise.all(newSettings.map(async (setting) => await this.syncNagazap(setting)))
+
+            await this.saveRooms()
+            this.emit()
+            if (newSettings.length > 0) {
+                this.emit("sync:done", undefined)
+            }
+
+            console.log("synced")
+            resolve(true)
+        })
+    }
+
+    unsyncNagazap(data: BoardNagazapSettings) {
+        console.log(`unsyncing ${data.nagazap_id}`)
+        this.rooms.forEach((room, index) => {
+            this.rooms[index].chats = room.chats.filter((chat) => chat.nagazap_id !== data.nagazap_id)
+        })
+    }
+
+    async syncNagazap(data: BoardNagazapSettings) {
+        const nagazap = await Nagazap.getById(data.nagazap_id)
+        if (nagazap) {
+            console.log(`syncing nagazap ${nagazap.displayName}`)
+            const messages = await nagazap.getMessages()
+            const naga_chats: NagaChat[] = []
+
+            for (const message of messages) {
+                const chat_index = naga_chats.findIndex((chat) => chat.from === message.from)
+                if (chat_index > -1) {
+                    const current_chat = naga_chats[chat_index]
+                    current_chat.messages.push(message)
+                    current_chat.lastMessage = message
+                    naga_chats[chat_index] = current_chat
+                } else {
+                    naga_chats.push({ from: message.from, messages: [message], lastMessage: message, name: message.name })
+                }
+            }
+
+            const chats = naga_chats.map(
+                (chat) =>
+                    new Chat({
+                        id: uid(),
+                        last_message: chat.lastMessage,
+                        name: chat.name,
+                        phone: chat.from,
+                        unread_count: 0,
+                        nagazap_id: nagazap.id,
+                    })
+            )
 
             const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))
             this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]

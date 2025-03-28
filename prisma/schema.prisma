@@ -216,7 +216,8 @@ model Board {
     name            String
     created_at      String
     rooms           Json
-    receive_washima_message Json
+    washima_settings Json
+    nagazap_settings Json
 
     entry_room_id   String
 
