@@ -346,8 +346,8 @@ export class Nagazap {
         return new_list
     }
 
-    async getMessages() {
-        const data = await prisma.nagazapMessage.findMany({ where: { nagazap_id: this.id } })
+    async getMessages(from?: string) {
+        const data = await prisma.nagazapMessage.findMany({ where: { nagazap_id: this.id, from } })
         const messages = data.map((item) => new NagaMessage(item))
         return messages
     }

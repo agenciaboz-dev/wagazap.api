@@ -235,9 +235,10 @@ router.patch("/token", async (request: NagazapRequest & UserRequest, response: R
 })
 
 router.get("/messages", async (request: NagazapRequest & UserRequest, response: Response) => {
+    const { from } = request.query
     try {
         const nagazap = request.nagazap!
-        const messages = await nagazap.getMessages()
+        const messages = await nagazap.getMessages(from as string | undefined)
         response.json(messages)
     } catch (error) {
         console.log(error)
