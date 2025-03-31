@@ -47,6 +47,12 @@ export interface BoardAccess {
     departments: Department[]
 }
 
+export interface TransferChatForm {
+    chat_id: string
+    destination_board_id: string
+    destination_room_id: string
+}
+
 export class Board {
     id: string
     name: string
@@ -468,5 +474,49 @@ export class Board {
                 departments: { set: [], connect: access.departments.map((department) => ({ id: department.id })) },
             },
         })
+    }
+
+    async getDestinationBoard(board_id: string) {
+        if (board_id === this.id) {
+            return this
+        }
+
+        return await Board.find(board_id)
+    }
+
+    getChatRoomIndex(chat_id: string) {
+        for (const [index, room] of this.rooms.entries()) {
+            const chatIndex = room.chats.findIndex((item) => item.id === chat_id)
+            if (chatIndex > -1) {
+                return { room: index, chat: chatIndex }
+            }
+        }
+
+        throw "chat não encontrado"
+    }
+
+    getChat(chat_id: string) {
+        const indexes = this.getChatRoomIndex(chat_id)
+        return this.rooms[indexes.room].chats[indexes.chat]
+    }
+
+    removeChat(chat_id: string) {
+        const indexes = this.getChatRoomIndex(chat_id)
+        this.rooms[indexes.room].chats = this.rooms[indexes.room].chats.filter((chat) => chat.id !== chat_id)
+    }
+
+    async transferChat(data: TransferChatForm) {
+        const destinationBoard = await this.getDestinationBoard(data.destination_board_id)
+        const chat = this.getChat(data.chat_id)
+        this.removeChat(data.chat_id)
+
+        for (const room of destinationBoard.rooms) {
+            if (room.id === data.destination_room_id) {
+                room.chats = [chat, ...room.chats]
+                await destinationBoard.saveRooms()
+                await this.saveRooms()
+                return chat
+            }
+        }
     }
 }

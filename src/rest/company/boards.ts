@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from "express"
 import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
 import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompanyId"
-import { Board, BoardAccess, BoardForm } from "../../class/Board/Board"
+import { Board, BoardAccess, BoardForm, TransferChatForm } from "../../class/Board/Board"
 import { Log } from "../../class/Log"
 import { BoardRequest, requireBoardId } from "../../middlewares/requireBoardId"
 
@@ -14,12 +14,12 @@ type UserCompanyRequest = UserRequest & CompanyRequest
 type BoardAuthRequest = BoardRequest & UserCompanyRequest
 
 router.get("/", async (request: UserCompanyRequest, response: Response) => {
-    const { board_id } = request.query
+    const { board_id, all } = request.query
 
     try {
         if (board_id) {
         } else {
-            const boards = await request.user!.getBoards()
+            const boards = all ? await Board.getCompanyBoards(request.company!.id) : await request.user!.getBoards()
             return response.json(boards)
         }
     } catch (error) {
@@ -82,6 +82,18 @@ router.get("/access", async (request: BoardAuthRequest, response: Response) => {
     try {
         const access = await request.board!.getAccess()
         return response.json(access)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.post("/transfer", async (request: BoardAuthRequest, response: Response) => {
+    const data = request.body as TransferChatForm
+
+    try {
+        await request.board?.transferChat(data)
+        return response.json(request.board)
     } catch (error) {
         console.log(error)
         response.status(500).send(error)
