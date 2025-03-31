@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client"
-import { Room, RoomDto, RoomForm } from "./Room"
+import { Room, RoomDto, RoomForm, RoomTrigger } from "./Room"
 import { prisma } from "../../prisma"
 import { WithoutFunctions } from "../helpers"
 import { Department, department_include } from "../Department"
@@ -51,6 +51,7 @@ export interface TransferChatForm {
     chat_id: string
     destination_board_id: string
     destination_room_id: string
+    copy?: boolean
 }
 
 export class Board {
@@ -75,11 +76,15 @@ export class Board {
         socket.on("board:subscribe", (board_id: string) => socket.join(board_id))
         socket.on("board:unsubscribe", (board_id: string) => socket.leave(board_id))
         socket.on("board:update", async (boardDto: Board) => {
-            console.log("board being updated")
             const board = await Board.find(boardDto.id)
-            console.log({ boardDto })
             board.update(boardDto)
             socket.to(boardDto.id).emit("board:update", boardDto)
+        })
+        socket.on("board:room:chat:clone", async (chatDto: WithoutFunctions<Chat>, clone: RoomTrigger) => {
+            const board = await Board.find(clone.board_id)
+            const chat = new Chat(chatDto)
+            await board.newChat(chat, clone.room_id)
+            board.emit()
         })
     }
 
@@ -236,6 +241,10 @@ export class Board {
     async newChat(chat: Chat, room_id?: string) {
         const room = this.rooms.find((room) => (room_id || this.entry_room_id) === room.id)
         if (!room) throw "sala não encontrada nesse quadro"
+
+        if (this.getChat(chat.id)) {
+            return
+        }
 
         room.chats.unshift(chat)
         this.saveRooms()
@@ -511,15 +520,18 @@ export class Board {
     async transferChat(data: TransferChatForm) {
         const destinationBoard = await this.getDestinationBoard(data.destination_board_id)
         const chat = this.getChat(data.chat_id)
-        this.removeChat(data.chat_id)
-
-        for (const room of destinationBoard.rooms) {
-            if (room.id === data.destination_room_id) {
-                room.chats = [chat, ...room.chats]
-                await destinationBoard.saveRooms()
-                await this.saveRooms()
-                return chat
-            }
+        if (!data.copy) {
+            this.removeChat(data.chat_id)
         }
+
+        await destinationBoard.newChat(chat, data.destination_room_id)
+    }
+
+    getRoom(room_id: string) {
+        const room = this.rooms.find((item) => item.id === room_id)
+
+        if (!room) throw "sala não encontrada"
+
+        return room
     }
 }

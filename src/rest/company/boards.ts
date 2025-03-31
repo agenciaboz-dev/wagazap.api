@@ -4,6 +4,7 @@ import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompa
 import { Board, BoardAccess, BoardForm, TransferChatForm } from "../../class/Board/Board"
 import { Log } from "../../class/Log"
 import { BoardRequest, requireBoardId } from "../../middlewares/requireBoardId"
+import { Room } from "../../class/Board/Room"
 
 const router = express.Router()
 
@@ -93,6 +94,22 @@ router.post("/transfer", async (request: BoardAuthRequest, response: Response) =
 
     try {
         await request.board?.transferChat(data)
+        return response.json(request.board)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.patch("/room", async (request: BoardAuthRequest, response: Response) => {
+    const { room_id } = request.query
+    const data = request.body as Partial<Room>
+
+    try {
+        console.log(room_id, request.board)
+        const room = request.board!.getRoom(room_id as string)
+        room.on_new_chat = data.on_new_chat
+        request.board!.updateRoom(room)
         return response.json(request.board)
     } catch (error) {
         console.log(error)
