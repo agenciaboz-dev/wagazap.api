@@ -12,9 +12,9 @@ export class Room {
     id: string
     name: string
     chats: Chat[]
-    
+
     entry_point?: boolean
-    on_new_chat?: {board_id: string, room_id?: string}
+    on_new_chat?: { board_id: string; room_id?: string }
 
     constructor(data: RoomDto) {
         this.id = data.id
@@ -24,11 +24,10 @@ export class Room {
     }
 
     async newMessage(chat: Chat) {
-        this.chats = this.chats.filter(item => item.id !== chat.id)
+        this.chats = this.chats.filter((item) => item.id !== chat.id)
         this.chats.unshift(chat)
 
         const io = getIoInstance()
-        io.to(this.id).emit('message:new', chat)
+        io.to(this.id).emit("message:new", chat)
     }
-    
 }

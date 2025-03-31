@@ -260,7 +260,10 @@ export class Board {
         let chat = new Chat(chatDto)
         const roomWithChat = this.rooms.find((room) =>
             room.chats.find((item) => {
-                if (item.washima_chat_id === chatDto.washima_chat_id || (item.nagazap_id && item.phone === chatDto.phone)) {
+                if (
+                    (item.washima_id === chat.washima_id && item.washima_chat_id === chatDto.washima_chat_id) ||
+                    (item.nagazap_id && item.phone === chatDto.phone)
+                ) {
                     chat = item
                     chat.unread_count = chatDto.unread_count
                     chat.profile_pic = chatDto.profile_pic
@@ -334,7 +337,7 @@ export class Board {
                     continue
                 }
 
-                if (chatIndex >= 0) {
+                if (chatIndex >= 0 && chats[chatIndex].washima_id === data.washima_id) {
                     continue
                 }
 
