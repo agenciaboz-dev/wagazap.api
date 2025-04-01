@@ -93,7 +93,10 @@ export class WashimaMessage {
     static async new(data: WashimaMessageForm, author?: string) {
         const message = data.message
 
-        const existing_message = await WashimaMessage.getByWrongId(message.id.id)
+        let existing_message: WashimaMessage | undefined
+        try {
+            existing_message = (await WashimaMessage.getByWrongId(message.id.id)) || (await WashimaMessage.getBySid(message.id._serialized))
+        } catch (error) {}
         if (data.isGroup && existing_message) {
             return existing_message
         }

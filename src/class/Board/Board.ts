@@ -105,6 +105,8 @@ export class Board {
     }
 
     static async handleWashimaNewMessage(data: HandleWashimaMessageDto) {
+        // console.log("new message")
+        // console.log(data.washima.name, data.chat.id, data.message.id)
         const boards = await this.getCompanyBoards(data.company_id)
         const contact = await data.chat.getContact()
         const profilePic = await data.washima.getCachedProfilePicture(data.chat.id._serialized, "chat")
@@ -508,8 +510,12 @@ export class Board {
     }
 
     getChat(chat_id: string) {
-        const indexes = this.getChatRoomIndex(chat_id)
-        return this.rooms[indexes.room].chats[indexes.chat]
+        try {
+            const indexes = this.getChatRoomIndex(chat_id)
+            return this.rooms[indexes.room].chats[indexes.chat]
+        } catch (error) {
+            console.log(error)
+        }
     }
 
     removeChat(chat_id: string) {
@@ -520,6 +526,8 @@ export class Board {
     async transferChat(data: TransferChatForm) {
         const destinationBoard = await this.getDestinationBoard(data.destination_board_id)
         const chat = this.getChat(data.chat_id)
+        if (!chat) return
+        
         if (!data.copy) {
             this.removeChat(data.chat_id)
         }

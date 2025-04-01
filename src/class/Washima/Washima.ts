@@ -386,8 +386,7 @@ export class Washima {
             })
 
             this.client.on("message_create", async (message) => {
-                try {
-                    // ignore status updates
+                const handler = async (message: WAWebJS.Message) => {
                     if (message.id.remote === "status@broadcast") return
 
                     const io = getIoInstance()
@@ -410,6 +409,8 @@ export class Washima {
                         },
                         this.info.pushname
                     )
+
+                    console.log("mensagem nova aqui " + this.name)
 
                     this.companies.forEach(async (company) => {
                         const users = await company.getUsers()
@@ -437,8 +438,18 @@ export class Washima {
                     }
 
                     Board.handleWashimaNewMessage({ chat, company_id: this.companies[0].id, message: washima_message, washima: this })
+                }
+                try {
+                    // ignore status updates
+                    await handler(message)
                 } catch (error) {
-                    // console.log({ error })
+                    if (
+                        error instanceof PrismaClientKnownRequestError &&
+                        error.meta?.modelName === "WashimaMessage" &&
+                        error.meta.target === "PRIMARY"
+                    ) {
+                        handler(message).catch((err) => console.log(err))
+                    }
                 }
             })
 
