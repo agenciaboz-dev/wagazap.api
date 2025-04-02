@@ -6,7 +6,7 @@ import { getIoInstance } from "../../io/socket"
 
 const router = express.Router()
 
-// https://apiwagazap.boz.app.br/nagazap/webhook/messages
+// https://apichat.boz.app.br/nagazap/webhook/messages
 
 router.get("/messages", async (request: Request, response: Response) => {
     const mode = request.query["hub.mode"]

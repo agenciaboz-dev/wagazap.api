@@ -116,7 +116,6 @@ export class NagaTemplate {
     }
 
     async update(data: Omit<Partial<NagaTemplate>, "info"> & { info?: Partial<TemplateInfo> }) {
-        console.log({ template_update_data: data })
         let info: TemplateInfo | undefined = undefined
         if (data.info) {
             info = this.info
@@ -125,8 +124,6 @@ export class NagaTemplate {
                 info[key as keyof TemplateInfo] = value
             })
         }
-
-        console.log({ info_atual: this.info, info_nova: info })
 
         const result = await prisma.nagaTemplate.update({
             where: { id: this.id },
@@ -396,7 +393,6 @@ export class Nagazap {
                 headers: this.buildHeaders(),
             })
 
-            console.log(JSON.stringify(response.data, null, 4))
             return response.data as BusinessInfo
         } catch (error) {
             console.log(JSON.stringify(error, null, 4))
@@ -421,7 +417,6 @@ export class Nagazap {
         }
 
         if (message.name !== this.displayPhone) {
-            console.log(message.from)
             const bots = await Bot.getByNagazap(this.id)
             bots.forEach((bot) => {
                 bot.handleIncomingMessage(
@@ -481,7 +476,6 @@ export class Nagazap {
             },
             { headers: this.buildHeaders({ upload: true }) }
         )
-        console.log(response.data.id)
         return response.data.id as string
     }
 
@@ -505,8 +499,7 @@ export class Nagazap {
 
         try {
             const whatsapp_response = await api.post(`/${this.phoneId}/messages`, form, { headers: this.buildHeaders() })
-            console.log(whatsapp_response.data)
-            this.log(whatsapp_response.data)
+            this.log(whatsapp_response.data, message.template)
         } catch (error) {
             if (error instanceof AxiosError) {
                 console.log(error.response?.data)
@@ -614,8 +607,8 @@ export class Nagazap {
         this.emit()
     }
 
-    async log(data: any) {
-        this.sentMessages.push({ timestamp: new Date().getTime().toString(), data })
+    async log(data: any, template_name: string) {
+        this.sentMessages.push({ timestamp: new Date().getTime().toString(), data, template_name })
         await prisma.nagazap.update({ where: { id: this.id }, data: { sentMessages: JSON.stringify(this.sentMessages) } })
     }
 
@@ -679,7 +672,6 @@ export class Nagazap {
             headers: this.buildHeaders(),
         })
         const result = response.data as TemplateFormResponse
-        console.log(result)
         await template.update({ info: { status: "PENDING", category: result.category }, last_update: now() })
 
         return template
@@ -744,7 +736,6 @@ export class Nagazap {
         const upload_response = await api.post(`/${session_id}`, file.data, {
             headers: { Authorization: `OAuth ${this.token}`, "Content-Type": "application/octet-stream" },
         })
-        console.log(upload_response.data)
         return upload_response.data
     }
 
@@ -790,7 +781,6 @@ export class Nagazap {
 
         try {
             const whatsapp_response = await api.post(`/${this.phoneId}/messages`, form, { headers: this.buildHeaders() })
-            console.log(whatsapp_response.data)
             // this.log(whatsapp_response.data)
         } catch (error) {
             if (error instanceof AxiosError) {
@@ -841,7 +831,6 @@ export class Nagazap {
 
     async syncTemplates() {
         const meta_templates = await this.getMetaTemplates()
-        console.log("syncing templates")
         for (const template of meta_templates) {
             try {
                 await NagaTemplate.new(template, this.id)
@@ -861,5 +850,14 @@ export class Nagazap {
         })
         const deleted = await prisma.nagaTemplate.delete({ where: { id: template.id } })
         return new NagaTemplate(deleted)
+    }
+
+    async getLastTemplateSentToNumber(number: string) {
+        console.log(number)
+        console.log(this.sentMessages[0])
+        const lastLog = this.sentMessages
+            .filter((item) => item.data.contacts[0].wa_id === number)
+            .reduce((last, log) => (last.timestamp >= log.timestamp ? last : log))
+        console.log(lastLog)
     }
 }

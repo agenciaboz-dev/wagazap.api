@@ -1,5 +1,6 @@
 export interface SentMessageLog {
     timestamp: string
+    template_name?: string
     data: {
         messaging_product: "whatsapp"
         contacts: [{ input: string; wa_id: string }]

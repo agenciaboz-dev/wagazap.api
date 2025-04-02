@@ -7,7 +7,7 @@ services:
     environment:
       - PORT=8105
       - DATABASE_URL=mysql://burgos:ewhblt69@mysql:3306/wagazap
-      - URL=https://apiwagazap.nandoburgos.dev
+      - URL=https://apichat.nandoburgos.dev
     ports:
       - "8105:8105"
     depends_on:
