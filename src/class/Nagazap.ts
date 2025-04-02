@@ -203,6 +203,8 @@ export class Nagazap {
     companyId: string
     company: Company
 
+    blacklistTrigger: string
+
     static async initialize() {
         await Nagazap.shouldBake()
         setInterval(() => Nagazap.shouldBake(), 1 * 5 * 1000)
@@ -323,6 +325,7 @@ export class Nagazap {
         this.company = new Company(data.company)
         this.displayName = data.displayName
         this.displayPhone = data.displayPhone
+        this.blacklistTrigger = data.blacklistTrigger
 
         this.blacklist = this.loadBlacklist(JSON.parse(data.blacklist))
     }
@@ -355,12 +358,23 @@ export class Nagazap {
     async update(data: Partial<WithoutFunctions<Nagazap>>) {
         const updated = await prisma.nagazap.update({
             where: { id: this.id },
-            data: { token: data.token, displayName: data.displayName, displayPhone: data.displayPhone, lastUpdated: new Date().getTime().toString() },
+            data: {
+                token: data.token,
+                displayName: data.displayName,
+                displayPhone: data.displayPhone,
+                lastUpdated: new Date().getTime().toString(),
+                blacklistTrigger: data.blacklistTrigger,
+                batchSize: data.batchSize,
+                frequency: data.frequency,
+            },
         })
         this.token = updated.token
         this.displayName = updated.displayName
         this.displayPhone = updated.displayPhone
         this.lastUpdated = updated.lastUpdated
+        this.blacklistTrigger = updated.blacklistTrigger
+        this.batchSize = updated.batchSize
+        this.frequency = updated.frequency
         this.emit()
         return this
     }
@@ -402,7 +416,7 @@ export class Nagazap {
         const io = getIoInstance()
         io.emit(`nagazap:${this.id}:message`, message)
 
-        if (message.text.toLowerCase() == "parar promoções") {
+        if (message.text.toLowerCase() == this.blacklistTrigger) {
             this.addToBlacklist(message.from)
         }
 
@@ -553,13 +567,6 @@ export class Nagazap {
         console.log(forms)
 
         await this.queueBatch(forms)
-    }
-
-    async updateOvenSettings(data: { batchSize?: number; frequency?: string }) {
-        const updated = await prisma.nagazap.update({ where: { id: this.id }, data })
-        this.batchSize = updated.batchSize
-        this.frequency = updated.frequency
-        this.emit()
     }
 
     async saveStack() {

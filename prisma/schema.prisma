@@ -23,6 +23,9 @@ model Nagazap {
     paused      Boolean     
     sentMessages    String  @db.LongText
     failedMessages    String  @db.LongText
+
+    blacklistTrigger    String      @default("parar promoções")
+
     receivedMessages    NagazapMessage[]
 
     displayName String?
