@@ -19,6 +19,8 @@ import { Company } from "../Company"
 import { Bot } from "../Bot/Bot"
 import { sleep } from "../../tools/sleep"
 import { Board } from "../Board/Board"
+import { existsSync, mkdirSync, writeFileSync } from "fs"
+import path from "path"
 // import numeral from 'numeral'
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
@@ -686,18 +688,30 @@ export class Washima {
 
         const chats = options?.groupOnly ? this.chats.filter((chat) => chat.isGroup) : this.chats
 
+        const chatsLog = chats.map((item) => ({
+            name: item.name,
+            data: {
+                started: false,
+                messages: false,
+                chat: false,
+                error_text: "",
+            },
+        }))
+
         for (const [chat_index, chat] of chats.entries()) {
             console.log(`loading messages for chat ${chat.name}. ${chat_index + 1}/${chats.length}`)
             io.emit(`washima:${this.id}:sync:chat`, chat_index + 1, chats.length)
+            chatsLog[chat_index].data.started = true
 
             try {
+                await chat.syncHistory()
                 const messages = await chat.fetchMessages({ limit: Number.MAX_VALUE })
 
                 for (const [index, message] of messages.entries()) {
                     if (message.from === "0@c.us") {
                         continue
                     }
-                    
+
                     console.log(`fetching message ${index + 1}/${messages.length} from chat ${chat_index + 1}/${chats.length}`)
                     io.emit(`washima:${this.id}:sync:messages`, index + 1, messages.length)
 
@@ -707,13 +721,17 @@ export class Washima {
                             chat_id: chat.id._serialized,
                             message,
                             isGroup: chat.isGroup,
+                            createOnly: true,
                         })
+                        chatsLog[chat_index].data.messages = true
                     } catch (error) {
                         if (error instanceof PrismaClientKnownRequestError && error.meta?.target === "PRIMARY") {
                             try {
                                 const washima_message = await WashimaMessage.update(message)
+                                chatsLog[chat_index].data.messages = true
                             } catch (error) {
                                 console.log(error)
+                                chatsLog[chat_index].data.error_text = JSON.stringify({ error, message })
                             }
                         } else {
                             console.log(`failed to create/update message ${message.id._serialized}`)
@@ -721,15 +739,32 @@ export class Washima {
                             console.log(error)
                             console.log("")
                             // console.log(message)
+                            chatsLog[chat_index].data.error_text = JSON.stringify({ error, message })
                         }
                     }
                 }
+                chatsLog[chat_index].data.chat = true
             } catch (error) {
-                console.log(`failed to fetch messages for chat ${chat.name} due to ${error}`)
+                const text = `failed to fetch messages for chat ${chat.name} due to ${error}`
+                console.log(text)
+                chatsLog[chat_index].data.error_text = JSON.stringify({ error: text, chat })
             }
         }
 
         console.log("finished")
+        const directoryPath = "static/synclogs"
+        if (!existsSync(directoryPath)) {
+            mkdirSync(directoryPath, { recursive: true })
+        }
+        const filePath = path.join(directoryPath, `${this.name}.json`)
+
+        const formattedLogs = {
+            chatError: chatsLog.filter((log) => !log.data.chat),
+            messageError: chatsLog.filter((log) => !log.data.messages),
+            all: chatsLog,
+        }
+
+        writeFileSync(filePath, JSON.stringify(formattedLogs))
     }
 
     async getTableUsage(table: string, megabyte?: boolean) {

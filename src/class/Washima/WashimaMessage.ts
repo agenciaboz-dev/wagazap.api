@@ -23,6 +23,7 @@ export interface WashimaMessageForm {
     washima_id: string
     chat_id: string
     isGroup?: boolean
+    createOnly?: boolean
 }
 
 export class WashimaMessage {
@@ -97,7 +98,7 @@ export class WashimaMessage {
         try {
             existing_message = (await WashimaMessage.getByWrongId(message.id.id)) || (await WashimaMessage.getBySid(message.id._serialized))
         } catch (error) {}
-        if (data.isGroup && existing_message) {
+        if (data.isGroup && existing_message && !data.createOnly) {
             return existing_message
         }
 
