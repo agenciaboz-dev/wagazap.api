@@ -407,17 +407,31 @@ export class Nagazap {
     }
 
     filterTemplatesOnlyMessages(messages: NagaMessage[]) {
-        const messagesToRemove: NagaMessage[] = []
+        const conversations = new Map<string, NagaMessage[]>()
 
-        for (const message of messages) {
-            const chat = messages.filter((item) => item.from === message.from)
-            if (chat.every((item) => this.isMessageFromMe(item))) {
-                messagesToRemove.push(message)
+        const normalizeNumber = (phone: string) => {
+            const clean = phone.replace(/\D/g, "").replace(/^0+|^55+/g, "")
+            return clean.replace(/^(\d{2})9(\d{8})$/, "$1$2")
+        }
+
+        messages.forEach((message) => {
+            const normalizedFrom = normalizeNumber(message.from)
+            if (!conversations.has(normalizedFrom)) {
+                conversations.set(normalizedFrom, [])
+            }
+            conversations.get(normalizedFrom)!.push(message)
+        })
+
+        const validMessages: NagaMessage[] = []
+        for (const [contact, convMessages] of conversations) {
+            const hasHumanReply = convMessages.some((msg) => !this.isMessageFromMe(msg) || msg.type !== "template")
+
+            if (hasHumanReply) {
+                validMessages.push(...convMessages)
             }
         }
-        // console.log({ messagesToRemove })
 
-        return messages.filter((message) => !messagesToRemove.find((item) => item.id === message.id))
+        return validMessages
     }
 
     async getMessages(from?: string) {
@@ -478,10 +492,6 @@ export class Nagazap {
 
     isMessageFromMe(message: NagaMessage) {
         return message.name === this.displayPhone
-    }
-
-    mergeTemplateInfoWithSentData(templateInfo: TemplateInfo, sentComponents: WhatsappTemplateComponent[]) {
-        let updatedTemplate = JSON.parse(JSON.stringify(templateInfo))
     }
 
     async saveMessage(data: NagaMessageForm) {
