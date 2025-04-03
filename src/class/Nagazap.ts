@@ -33,9 +33,18 @@ import { now } from "lodash"
 import { convertCsvToXlsx } from "@aternus/csv-to-xlsx"
 import { Board } from "./Board/Board"
 
-export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button"
+export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button" | "template"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
-export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id">
+export type NagaMessageTemplate = {
+    name: string
+    language: {
+        code: "en_US" | "pt_BR"
+    }
+    components?: WhatsappTemplateComponent[]
+}
+export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id" | "template"> & {
+    template?: NagaMessageTemplate
+}
 export type NagaTemplatePrisma = Prisma.NagaTemplateGetPayload<{}>
 export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: { include: company_include } })
 export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
@@ -61,8 +70,8 @@ export class NagaTemplate {
         return template
     }
 
-    static async getByName(name: string) {
-        const result = await prisma.nagaTemplate.findFirst({ where: { info: { string_contains: name } } })
+    static async getByName(name: string, nagazap_id?: string) {
+        const result = await prisma.nagaTemplate.findFirst({ where: { info: { string_contains: name }, nagazap_id } })
         if (!result) throw "template não encontrado"
 
         return new NagaTemplate(result)
@@ -136,6 +145,55 @@ export class NagaTemplate {
 
         this.load(result)
     }
+
+    convertWhatsappComponentsToTemplateInfo(formComponents: WhatsappTemplateComponent[]): TemplateInfo {
+        const originalTemplate = this.info
+        // Clone the original template to avoid mutation
+        const convertedTemplate: TemplateInfo = {
+            ...originalTemplate,
+            components: originalTemplate.components.map((comp) => ({ ...comp })),
+        }
+
+        formComponents.forEach((formComp) => {
+            const originalComp = convertedTemplate.components.find((c) => c.type.toLowerCase() === formComp.type)
+            if (!originalComp) return
+
+            formComp.parameters.forEach((param) => {
+                const paramName = param.parameter_name
+                // if (!paramName) {
+                //     console.error("Parameter name is missing for:", param)
+                //     return
+                // }
+
+                switch (param.type) {
+                    case "text":
+                    case "currency":
+                    case "date_time":
+                        // Handle text-based parameters
+                        const value = param.text || param.currency || param.date_time || ""
+                        if (originalComp.text) {
+                            const placeholderRegex = new RegExp(`\\{\\{${paramName}\\}\\}`, "g")
+                            originalComp.text = originalComp.text.replace(placeholderRegex, value)
+                        }
+                        break
+                    case "image":
+                    case "video":
+                    case "document":
+                        // Handle media parameters (update component's media property)
+                        const media = param[param.type]
+                        if (media) {
+                            console.log({ media })
+                            originalComp.text = media.link
+                        }
+                        break
+                    default:
+                        console.warn("Unhandled parameter type:", param.type)
+                }
+            })
+        })
+
+        return convertedTemplate
+    }
 }
 
 export class NagaMessage {
@@ -146,6 +204,7 @@ export class NagaMessage {
     name: string
     type: NagaMessageType
     nagazap_id: string
+    template: TemplateInfo | null
 
     constructor(data: NagaMessagePrisma) {
         this.id = data.id
@@ -155,6 +214,7 @@ export class NagaMessage {
         this.text = data.text
         this.name = data.name
         this.type = data.type as NagaMessageType
+        this.template = data.template ? JSON.parse(data.template as string) : null
     }
 }
 
@@ -346,10 +406,27 @@ export class Nagazap {
         return new_list
     }
 
+    filterTemplatesOnlyMessages(messages: NagaMessage[]) {
+        const messagesToRemove: NagaMessage[] = []
+
+        for (const message of messages) {
+            const chat = messages.filter((item) => item.from === message.from)
+            if (chat.every((item) => this.isMessageFromMe(item))) {
+                messagesToRemove.push(message)
+            }
+        }
+        // console.log({ messagesToRemove })
+
+        return messages.filter((message) => !messagesToRemove.find((item) => item.id === message.id))
+    }
+
     async getMessages(from?: string) {
         const data = await prisma.nagazapMessage.findMany({ where: { nagazap_id: this.id, from } })
-        const messages = data.map((item) => new NagaMessage(item))
-        return messages
+        const allMessages = data.map((item) => new NagaMessage(item))
+
+        const filteredMessages = this.filterTemplatesOnlyMessages(allMessages)
+
+        return filteredMessages
     }
 
     async update(data: Partial<WithoutFunctions<Nagazap>>) {
@@ -399,16 +476,32 @@ export class Nagazap {
         }
     }
 
+    isMessageFromMe(message: NagaMessage) {
+        return message.name === this.displayPhone
+    }
+
+    mergeTemplateInfoWithSentData(templateInfo: TemplateInfo, sentComponents: WhatsappTemplateComponent[]) {
+        let updatedTemplate = JSON.parse(JSON.stringify(templateInfo))
+    }
+
     async saveMessage(data: NagaMessageForm) {
+        let template: TemplateInfo | undefined
+        if (data.template) {
+            const original_template = await this.getTemplateByName(data.template.name)
+            template = original_template.convertWhatsappComponentsToTemplateInfo(data.template.components || [])
+        }
+
         const prisma_message = await prisma.nagazapMessage.create({
             data: {
                 ...data,
                 nagazap_id: this.id,
                 timestamp: (Number(data.timestamp) * 1000).toString(),
+                template: template ? JSON.stringify(template) : undefined,
             },
         })
 
         const message = new NagaMessage(prisma_message)
+        console.log(JSON.stringify(message))
         const io = getIoInstance()
         io.emit(`nagazap:${this.id}:message`, message)
 
@@ -416,7 +509,7 @@ export class Nagazap {
             this.addToBlacklist(message.from)
         }
 
-        if (message.name !== this.displayPhone) {
+        if (!this.isMessageFromMe(message)) {
             const bots = await Bot.getByNagazap(this.id)
             bots.forEach((bot) => {
                 bot.handleIncomingMessage(
@@ -500,6 +593,14 @@ export class Nagazap {
         try {
             const whatsapp_response = await api.post(`/${this.phoneId}/messages`, form, { headers: this.buildHeaders() })
             this.log(whatsapp_response.data, message.template)
+            await this.saveMessage({
+                from: number,
+                name: this.displayPhone!,
+                text: "",
+                timestamp: (new Date().getTime() / 1000).toString(),
+                type: "template",
+                template: form.template,
+            })
         } catch (error) {
             if (error instanceof AxiosError) {
                 console.log(error.response?.data)
@@ -524,7 +625,7 @@ export class Nagazap {
         return this.stack
     }
 
-    async prepareBatch(data: OvenForm, image_id = "") {
+    async prepareBatch(data: OvenForm, image_id = "", image_url?: string) {
         const template = await this.getTemplate(data.template_id)
         const template_info = template.info
 
@@ -543,7 +644,7 @@ export class Nagazap {
                             type: component.type.toLowerCase() as "header" | "body" | "footer",
                             parameters:
                                 component.format === "IMAGE"
-                                    ? [{ type: "image", image: { id: image_id } }]
+                                    ? [{ type: "image", image: { link: image_url } }]
                                     : component.example
                                     ? component.example[param_type]?.map((example) => ({
                                           type: "text",
@@ -827,6 +928,10 @@ export class Nagazap {
 
     async getTemplate(id: string) {
         return await NagaTemplate.getById(id)
+    }
+
+    async getTemplateByName(name: string) {
+        return await NagaTemplate.getByName(name, this.id)
     }
 
     async syncTemplates() {

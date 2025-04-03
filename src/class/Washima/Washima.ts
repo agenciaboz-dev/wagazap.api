@@ -131,6 +131,7 @@ export class Washima {
     diskMetrics?: WashimaDiskMetrics
 
     companies: Company[] = []
+    syncing = false
 
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
@@ -681,7 +682,9 @@ export class Washima {
     }
 
     async fetchAndSaveAllMessages(options?: { groupOnly?: boolean }) {
-        if (!this.ready || !this.chats.length) return
+        if (!this.ready || !this.chats.length || this.syncing) return
+
+        this.syncing = true
         const io = getIoInstance()
 
         console.log(`fetching messages for washima ${this.name}`)
@@ -765,6 +768,7 @@ export class Washima {
         }
 
         writeFileSync(filePath, JSON.stringify(formattedLogs))
+        this.syncing = false
     }
 
     async getTableUsage(table: string, megabyte?: boolean) {

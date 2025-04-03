@@ -401,7 +401,7 @@ router.post("/oven", async (request: NagazapRequest & UserRequest, response: Res
             file.name = file.name.replace(/[\s\/\\?%*:|"<>]+/g, "-").trim()
             const uploaded = saveFile("nagazap/image", { name: file.name, file: file.data }, async () => {
                 image_id = await nagazap.uploadMedia(file, uploaded.filepath)
-                await nagazap.prepareBatch(data, image_id)
+                await nagazap.prepareBatch(data, image_id, uploaded.url)
                 if (send_now) await nagazap.start()
             })
         } else {
