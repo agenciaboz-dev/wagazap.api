@@ -423,31 +423,20 @@ export class Board {
         const nagazap = await Nagazap.getById(data.nagazap_id)
         if (nagazap) {
             console.log(`syncing nagazap ${nagazap.displayName}`)
-            const messages = await nagazap.getMessages()
-            const naga_chats: NagaChat[] = []
+            const conversations = await nagazap.getConversations()
 
-            for (const message of messages) {
-                const chat_index = naga_chats.findIndex((chat) => chat.from === message.from)
-                if (chat_index > -1) {
-                    const current_chat = naga_chats[chat_index]
-                    current_chat.messages.push(message)
-                    current_chat.lastMessage = message
-                    naga_chats[chat_index] = current_chat
-                } else {
-                    naga_chats.push({ from: message.from, messages: [message], lastMessage: message, name: message.name })
-                }
-            }
-
-            const chats = naga_chats.map(
-                (chat) =>
+            const chats: Chat[] = []
+            conversations.forEach((messages) =>
+                chats.push(
                     new Chat({
                         id: uid(),
-                        last_message: chat.lastMessage,
-                        name: chat.name,
-                        phone: chat.from,
+                        last_message: messages[messages.length - 1],
+                        name: messages.find((item) => item.name !== nagazap.displayPhone)?.name || "EITA PREULA",
+                        phone: messages[0].from,
                         unread_count: 0,
                         nagazap_id: nagazap.id,
                     })
+                )
             )
 
             const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))

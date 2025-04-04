@@ -32,6 +32,7 @@ import { Bot } from "./Bot/Bot"
 import { now } from "lodash"
 import { convertCsvToXlsx } from "@aternus/csv-to-xlsx"
 import { Board } from "./Board/Board"
+import { normalizePhoneNumber } from "../tools/normalize"
 
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button" | "template"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
@@ -406,22 +407,25 @@ export class Nagazap {
         return new_list
     }
 
-    filterTemplatesOnlyMessages(messages: NagaMessage[]) {
-        const conversations = new Map<string, NagaMessage[]>()
-
-        const normalizeNumber = (phone: string) => {
-            const clean = phone.replace(/\D/g, "").replace(/^0+|^55+/g, "")
-            return clean.replace(/^(\d{2})9(\d{8})$/, "$1$2")
+    async getConversations(messages?: NagaMessage[]) {
+        if (!messages) {
+            const data = await prisma.nagazapMessage.findMany({ where: { nagazap_id: this.id } })
+            messages = data.map((item) => new NagaMessage(item))
         }
 
+        const conversations = new Map<string, NagaMessage[]>()
         messages.forEach((message) => {
-            const normalizedFrom = normalizeNumber(message.from)
+            const normalizedFrom = normalizePhoneNumber(message.from)
             if (!conversations.has(normalizedFrom)) {
                 conversations.set(normalizedFrom, [])
             }
             conversations.get(normalizedFrom)!.push(message)
         })
 
+        return conversations
+    }
+
+    filterTemplatesOnlyMessages(conversations: Map<string, NagaMessage[]>) {
         const validMessages: NagaMessage[] = []
         for (const [contact, convMessages] of conversations) {
             const hasHumanReply = convMessages.some((msg) => !this.isMessageFromMe(msg) || msg.type !== "template")
@@ -436,9 +440,10 @@ export class Nagazap {
 
     async getMessages(from?: string) {
         const data = await prisma.nagazapMessage.findMany({ where: { nagazap_id: this.id, from } })
-        const allMessages = data.map((item) => new NagaMessage(item))
+        const messages = data.map((item) => new NagaMessage(item))
+        const conversations = await this.getConversations(messages)
 
-        const filteredMessages = this.filterTemplatesOnlyMessages(allMessages)
+        const filteredMessages = this.filterTemplatesOnlyMessages(conversations)
 
         return filteredMessages
     }
