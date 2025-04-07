@@ -86,6 +86,12 @@ export class Board {
             await board.newChat(chat, clone.room_id)
             board.emit()
         })
+        socket.on("board:room:chat:remove", async (chatDto: WithoutFunctions<Chat>, data: RoomTrigger) => {
+            const board = await Board.find(data.board_id)
+            board.removeChat(chatDto.id)
+            board.emit()
+            board.saveRooms()
+        })
     }
 
     static async handleNagazapNewMessage(message: NagaMessage, company_id: string) {
@@ -519,6 +525,7 @@ export class Board {
         
         if (!data.copy) {
             this.removeChat(data.chat_id)
+            this.saveRooms()
         }
 
         await destinationBoard.newChat(chat, data.destination_room_id)
