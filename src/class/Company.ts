@@ -11,9 +11,14 @@ import { Log, log_include } from "./Log"
 import { Department, department_include, DepartmentForm } from "./Department"
 
 export const company_include = Prisma.validator<Prisma.CompanyInclude>()({ departments: { include: department_include } })
+export const admin_company_include = Prisma.validator<Prisma.CompanyInclude>()({
+    ...company_include,
+    _count: { select: { nagazaps: true, users: true, washimas: true } },
+})
 export type CompanyPrisma = Prisma.CompanyGetPayload<{ include: typeof company_include }>
+export type AdminCompanyPrisma = Prisma.CompanyGetPayload<{ include: typeof admin_company_include }>
 
-export type CompanyForm = Omit<WithoutFunctions<Company>, "id" | "address" | "departments"> & {
+export type CompanyForm = Omit<WithoutFunctions<Company>, "id" | "address" | "departments" | "active"> & {
     address: WithoutFunctions<Address>
     user: UserForm
 }
@@ -25,6 +30,12 @@ export class Company {
     document: string
     address: Address
     departments: Department[]
+    active: boolean
+
+    static async getAll() {
+        const result = await prisma.company.findMany({ include: company_include })
+        return result.map((item) => new Company(item))
+    }
 
     static async getById(company_id: string) {
         const result = await prisma.company.findUnique({ where: { id: company_id }, include: company_include })
@@ -63,6 +74,7 @@ export class Company {
         this.document = data.document
         this.address = JSON.parse(data.address as string)
         this.departments = data.departments?.map((item) => new Department(item)) || []
+        this.active = data.active
     }
 
     async newUser(data: UserForm) {
@@ -174,5 +186,43 @@ export class Company {
         })
         const department = new Department(result)
         return department
+    }
+
+    async update(data: Partial<Company>) {
+        const result = await prisma.company.update({
+            where: { id: this.id },
+            data: {
+                active: data.active,
+            },
+        })
+
+        this.active = result.active
+        return this
+    }
+}
+
+export class AdminCompany extends Company {
+    usersCount: number
+    washimaCount: number
+    nagazapCount: number
+    diskUsed: string
+
+    static async getAll() {
+        const result = await prisma.company.findMany({ include: admin_company_include })
+        const companies = result.map((item) => new AdminCompany(item))
+
+        for (const company of companies) {
+            company.diskUsed = await company.getTotalStorage()
+        }
+
+        return companies
+    }
+
+    constructor(data: AdminCompanyPrisma) {
+        super(data)
+        this.usersCount = data._count.users
+        this.washimaCount = data._count.washimas
+        this.nagazapCount = data._count.nagazaps
+        this.diskUsed = ""
     }
 }

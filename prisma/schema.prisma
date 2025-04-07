@@ -99,6 +99,7 @@ model WashimaMessage {
     deleted     Boolean         @default(false)
     replied_to  Json?
     forwarded   Boolean         @default(false)
+    phone_only  Boolean?
 
     @@fulltext([body])
 }
@@ -139,6 +140,7 @@ model Company {
     business_name    String          @db.Text
     document         String
     address         Json
+    active          Boolean         @default(true)
 
     departments     Department[]
     users            User[]

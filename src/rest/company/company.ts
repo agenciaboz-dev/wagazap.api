@@ -5,6 +5,8 @@ import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompa
 import bots from "./bots"
 import departments from "./departments"
 import boards from "./boards"
+import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
+import { Log } from "../../class/Log"
 
 const router = express.Router()
 
@@ -41,6 +43,21 @@ router.get("/logs", async (request: CompanyRequest, response: Response) => {
     try {
         const logs = await request.company?.getLogs()
         response.json(logs)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.use(requireUserId)
+
+router.patch("/", async (request: CompanyRequest & UserRequest, response: Response) => {
+    const data = request.body as Partial<Company>
+
+    try {
+        await request.company!.update(data)
+        // Log.new({company_id: request.company!.id, user_id: request.user!.id, type: ''})
+        response.json(request.company)
     } catch (error) {
         console.log(error)
         response.status(500).send(error)

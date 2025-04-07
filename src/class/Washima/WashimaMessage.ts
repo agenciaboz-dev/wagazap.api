@@ -45,6 +45,7 @@ export class WashimaMessage {
     deleted: boolean
     replied_to?: WashimaMessage | null
     forwarded: boolean
+    phone_only: boolean | null
 
     static async getChatMessages(washima_id: string, chat_id: string, is_group: boolean, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -130,6 +131,7 @@ export class WashimaMessage {
                 author: message.author || author || "",
                 replied_to: JSON.stringify(washimaQuotedMessage) || undefined,
                 forwarded: message.isForwarded,
+                phone_only: (message as any)._data?.subtype === "phone_only_feature",
             },
         })
 
@@ -198,5 +200,6 @@ export class WashimaMessage {
         this.deleted = data.deleted
         this.replied_to = data.replied_to ? (JSON.parse(data.replied_to as string) as WashimaMessage) : null
         this.forwarded = data.forwarded
+        this.phone_only = data.phone_only
     }
 }

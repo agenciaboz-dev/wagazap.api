@@ -392,6 +392,8 @@ export class Washima {
                 const handler = async (message: WAWebJS.Message) => {
                     if (message.id.remote === "status@broadcast") return
 
+                    console.log(JSON.stringify(message))
+
                     const io = getIoInstance()
                     const chat = await message.getChat()
 
