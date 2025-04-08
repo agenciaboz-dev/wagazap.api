@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client"
 import { WithoutFunctions } from "../helpers"
 import { prisma } from "../../prisma"
 import { now } from "lodash"
-import { Washima } from "../Washima/Washima"
+import { Washima, WashimaMediaForm } from "../Washima/Washima"
 import { Edge, Node, ReactFlowInstance, ReactFlowJsonObject } from "@xyflow/react"
 import Fuse from "fuse.js"
 
@@ -16,6 +16,11 @@ export interface FlowNode extends Node {
         editNode: (node: FlowNode | null) => void
         deleteNode?: (node: FlowNode) => void
         getChildren: (parentId: string, type?: "direct" | "recursive") => FlowNode[]
+        media?: {
+            url: string
+            mimetype: string
+            type: "audio" | "image" | "video" | "document"
+        }
         // nodes: FlowNode[]
         // edges: FlowEdge[]
     }
@@ -170,7 +175,12 @@ export class Bot {
         await prisma.bot.delete({ where: { id: this.id } })
     }
 
-    async handleIncomingMessage(message: string, chat_id: string, response: (text: string) => Promise<void>, other_bots: Bot[]) {
+    async handleIncomingMessage(
+        message: string,
+        chat_id: string,
+        response: (text: string, media?: WashimaMediaForm) => Promise<void>,
+        other_bots: Bot[]
+    ) {
         if (other_bots.some((bot) => bot.getActiveChat(chat_id))) return
 
         let current_chat = this.getActiveChat(chat_id)
@@ -337,7 +347,7 @@ export class Bot {
 
     compareIncomingMessage(message: string, trigger = this.trigger) {
         if (trigger === "") return trigger
-        
+
         const potential_triggers = trigger.split(";").map((text) => text.trim())
         console.log({ potential_triggers })
 
@@ -362,9 +372,7 @@ export class Bot {
                     return result[0]
                 }
             }
-
         }
-
     }
 }
 

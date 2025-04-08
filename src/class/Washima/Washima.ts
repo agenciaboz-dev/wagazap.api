@@ -436,7 +436,7 @@ export class Washima {
                             bot.handleIncomingMessage(
                                 message.body,
                                 chat.id._serialized,
-                                (text) => this.sendMessage(chat.id._serialized, text),
+                                (text, media) => this.sendMessage(chat.id._serialized, text, media),
                                 bots.filter((item) => item.id !== bot.id)
                             )
                         })
