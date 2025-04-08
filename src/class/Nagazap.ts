@@ -539,7 +539,7 @@ export class Nagazap {
                     platform: "nagazap",
                     message: message.text,
                     chat_id: message.from,
-                    response: (text, media) => this.sendResponse({ number: message.from, text }),
+                    response: (text, media) => this.sendResponse({ number: message.from, text, media: media as NagazapMediaForm }),
                     other_bots: bots.filter((item) => item.id !== bot.id),
                 })
             })
