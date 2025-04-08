@@ -1,14 +1,30 @@
 import { Prisma } from "@prisma/client"
-import { WithoutFunctions } from "../helpers"
+import { FileUpload, WithoutFunctions } from "../helpers"
 import { prisma } from "../../prisma"
 import { now } from "lodash"
-import { Washima, WashimaMediaForm } from "../Washima/Washima"
-import { Edge, Node, ReactFlowInstance, ReactFlowJsonObject } from "@xyflow/react"
+import { WashimaMediaForm } from "../Washima/Washima"
+import { Edge, Node, ReactFlowJsonObject } from "@xyflow/react"
 import Fuse from "fuse.js"
+import { convertFile } from "../../tools/convertMedia"
 
 export const bot_include = Prisma.validator<Prisma.BotInclude>()({ washimas: { select: { id: true } }, nagazaps: { select: { id: true } } })
 type BotPrisma = Prisma.BotGetPayload<{ include: typeof bot_include }>
 
+export interface FlowNodeData {
+    onAddChild: (type: "message" | "response") => void
+    value: string
+    editNode: (node: FlowNode | null) => void
+    deleteNode?: (node: FlowNode) => void
+    getChildren: (parentId: string, type?: "direct" | "recursive") => FlowNode[]
+    media?: {
+        base64: string
+        mimetype: string
+        type: "audio" | "image" | "video" | "document"
+        file?: FileUpload
+    }
+    // nodes: FlowNode[]
+    // edges: FlowEdge[]
+}
 export interface FlowNode extends Node {
     data: {
         onAddChild: (type: "message" | "response") => void
@@ -17,9 +33,10 @@ export interface FlowNode extends Node {
         deleteNode?: (node: FlowNode) => void
         getChildren: (parentId: string, type?: "direct" | "recursive") => FlowNode[]
         media?: {
-            url: string
+            base64: string
             mimetype: string
             type: "audio" | "image" | "video" | "document"
+            file?: FileUpload
         }
         // nodes: FlowNode[]
         // edges: FlowEdge[]
@@ -30,6 +47,7 @@ export interface FlowEdge extends Edge {
     type?: string
     animated?: boolean
 }
+
 export class ActiveBot {
     chat_id: string
     current_node_id: string
@@ -199,7 +217,14 @@ export class Bot {
             const bot_responses = this.advanceChat(current_chat, message)
             if (bot_responses) {
                 bot_responses.forEach((bot_message, index) => {
-                    setTimeout(() => response(bot_message), index * 1000)
+                    setTimeout(
+                        () =>
+                            response(
+                                bot_message.value,
+                                bot_message.media ? { base64: bot_message.media.base64, mimetype: bot_message.media.mimetype } : undefined
+                            ),
+                        index * 1000
+                    )
                 })
 
                 Bot.pending_response.set(current_chat.chat_id, {
@@ -290,7 +315,7 @@ export class Bot {
         }
 
         if (answered_node) {
-            const messages: string[] = []
+            const messages: FlowNodeData[] = []
             let current_node = answered_node
             let loop = true
 
@@ -309,7 +334,7 @@ export class Bot {
                     chat.current_node_id = next_node.id
                     chat.last_interaction = now()
                     current_node = next_node
-                    messages.push(next_node.data.value)
+                    messages.push(next_node.data)
                 }
             }
 
@@ -317,7 +342,7 @@ export class Bot {
             return messages
         } else {
             const options = this.getNodeChildren(chat.current_node_id).map((node) => node.data.value)
-            return [`Não entendi. As opções são:\n* ${options.join("\n* ")}`]
+            return [{ value: `Não entendi. As opções são:\n* ${options.join("\n* ")}`, media: undefined }]
         }
     }
 
@@ -375,4 +400,3 @@ export class Bot {
         }
     }
 }
-
