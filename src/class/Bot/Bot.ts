@@ -6,6 +6,10 @@ import { WashimaMediaForm } from "../Washima/Washima"
 import { Edge, Node, ReactFlowJsonObject } from "@xyflow/react"
 import Fuse from "fuse.js"
 import { convertFile } from "../../tools/convertMedia"
+import { saveFile } from "../../tools/saveFile"
+import { NagazapMediaForm } from "../Nagazap"
+import { file2base64 } from "../../tools/file2base64"
+import { sleep } from "../../tools/sleep"
 
 export const bot_include = Prisma.validator<Prisma.BotInclude>()({ washimas: { select: { id: true } }, nagazaps: { select: { id: true } } })
 type BotPrisma = Prisma.BotGetPayload<{ include: typeof bot_include }>
@@ -17,10 +21,11 @@ export interface FlowNodeData {
     deleteNode?: (node: FlowNode) => void
     getChildren: (parentId: string, type?: "direct" | "recursive") => FlowNode[]
     media?: {
-        base64: string
+        url: string
         mimetype: string
         type: "audio" | "image" | "video" | "document"
-        file?: FileUpload
+        name: string
+        base64?: string
     }
     // nodes: FlowNode[]
     // edges: FlowEdge[]
@@ -33,10 +38,11 @@ export interface FlowNode extends Node {
         deleteNode?: (node: FlowNode) => void
         getChildren: (parentId: string, type?: "direct" | "recursive") => FlowNode[]
         media?: {
-            base64: string
+            url: string
             mimetype: string
             type: "audio" | "image" | "video" | "document"
-            file?: FileUpload
+            name: string
+            base64?: string
         }
         // nodes: FlowNode[]
         // edges: FlowEdge[]
@@ -168,6 +174,27 @@ export class Bot {
     }
 
     async update(data: Partial<Bot>) {
+        if (data.instance) {
+            for (const node of data.instance?.nodes) {
+                const media = node.data.media
+                if (media) {
+                    const base64 = media.base64
+                    if (base64) {
+                        const file = saveFile(`company-${this.company_id}/bot-${this.name}/media`, {
+                            name: media.name,
+                            base64,
+                            mimetype: media.mimetype,
+                        })
+
+                        media.base64 = undefined
+                        media.url = file.url
+                    }
+                }
+            }
+        }
+
+        console.log(data.instance?.nodes)
+
         const result = await prisma.bot.update({
             where: { id: this.id },
             data: {
@@ -193,43 +220,47 @@ export class Bot {
         await prisma.bot.delete({ where: { id: this.id } })
     }
 
-    async handleIncomingMessage(
-        message: string,
-        chat_id: string,
-        response: (text: string, media?: WashimaMediaForm) => Promise<void>,
+    async handleIncomingMessage(data: {
+        message: string
+        chat_id: string
+        response: (text: string, media?: WashimaMediaForm | NagazapMediaForm) => Promise<void>
         other_bots: Bot[]
-    ) {
-        if (other_bots.some((bot) => bot.getActiveChat(chat_id))) return
+        platform: "nagazap" | "washima"
+    }) {
+        if (data.other_bots.some((bot) => bot.getActiveChat(data.chat_id))) return
 
-        let current_chat = this.getActiveChat(chat_id)
+        let current_chat = this.getActiveChat(data.chat_id)
 
-        if (!current_chat && this.compareIncomingMessage(message) !== undefined) {
-            current_chat = this.newChat(chat_id)
+        if (!current_chat && this.compareIncomingMessage(data.message) !== undefined) {
+            current_chat = this.newChat(data.chat_id)
         }
 
         if (current_chat) {
-            if (this.compareIncomingMessage(message, "reset") !== undefined) {
+            if (this.compareIncomingMessage(data.message, "reset") !== undefined) {
                 this.closeChat(current_chat.chat_id)
-                await response("bot reiniciado")
+                await data.response("bot reiniciado")
                 return
             }
 
-            const bot_responses = this.advanceChat(current_chat, message)
+            const bot_responses = this.advanceChat(current_chat, data.message)
             if (bot_responses) {
-                bot_responses.forEach((bot_message, index) => {
-                    setTimeout(
-                        () =>
-                            response(
-                                bot_message.value,
-                                bot_message.media ? { base64: bot_message.media.base64, mimetype: bot_message.media.mimetype } : undefined
-                            ),
-                        index * 1000
-                    )
-                })
+                for (const bot_message of bot_responses) {
+                    const media = bot_message.media
+                        ? data.platform === "washima"
+                            ? {
+                                  base64: file2base64("static" + bot_message.media.url.split("static")[1]),
+                                  mimetype: bot_message.media.mimetype,
+                              }
+                            : { url: bot_message.media.url, type: bot_message.media.type }
+                        : undefined
+
+                    data.response(bot_message.value, media)
+                    await sleep(2000)
+                }
 
                 Bot.pending_response.set(current_chat.chat_id, {
                     chat_id: current_chat.chat_id,
-                    response: response,
+                    response: data.response,
                     timestamp: now() + 1000 * 60 * this.expiry_minutes,
                     bot: this,
                 })

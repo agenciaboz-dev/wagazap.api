@@ -433,12 +433,13 @@ export class Washima {
                     if (!message.fromMe && !chat.isGroup) {
                         const bots = await Bot.getByWashima(this.id)
                         bots.forEach((bot) => {
-                            bot.handleIncomingMessage(
-                                message.body,
-                                chat.id._serialized,
-                                (text, media) => this.sendMessage(chat.id._serialized, text, media),
-                                bots.filter((item) => item.id !== bot.id)
-                            )
+                            bot.handleIncomingMessage({
+                                platform: "washima",
+                                message: message.body,
+                                chat_id: chat.id._serialized,
+                                response: (text, media) => this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm),
+                                other_bots: bots.filter((item) => item.id !== bot.id),
+                            })
                         })
                     }
 

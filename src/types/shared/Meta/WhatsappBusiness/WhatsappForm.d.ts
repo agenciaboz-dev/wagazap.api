@@ -30,10 +30,16 @@ export interface WhatsappTemplateComponent {
     parameters: WhatsappTemplateParams[]
 }
 
+export interface NagazapMediaItem {
+    id?: string
+    link?: string
+    caption?: string
+}
+
 export interface WhatsappApiForm {
     messaging_product: "whatsapp"
     to: string
-    type: "template" | "text"
+    type: "template" | "text" | "image" | "video" | "audio" | "document"
     template?: {
         name: string
         language: {
@@ -46,6 +52,9 @@ export interface WhatsappApiForm {
         preview_url: boolean
         body: string
     }
+
+    image?: NagazapMediaItem
+    video?: NagazapMediaItem
     recipient_type?: "individual"
 }
 

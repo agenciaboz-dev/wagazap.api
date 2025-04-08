@@ -54,7 +54,6 @@ router.get("/channels", async (request: BotRequest & UserRequest, response: Resp
 
 router.patch("/", async (request: BotRequest & UserRequest, response: Response) => {
     const data = request.body as Partial<Bot>
-    console.log(data)
 
     try {
         const bot = request.bot!

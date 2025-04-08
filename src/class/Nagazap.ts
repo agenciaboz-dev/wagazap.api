@@ -49,9 +49,15 @@ export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "
 export type NagaTemplatePrisma = Prisma.NagaTemplateGetPayload<{}>
 export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: { include: company_include } })
 export type NagazapPrisma = Prisma.NagazapGetPayload<{ include: typeof nagazap_include }>
+
+export interface NagazapMediaForm {
+    url: string
+    type: "image" | "video" | "audio" | "document"
+}
 export interface NagazapResponseForm {
     number: string
     text: string
+    media?: NagazapMediaForm
 }
 interface BuildHeadersOptions {
     upload?: boolean
@@ -529,12 +535,13 @@ export class Nagazap {
         if (!this.isMessageFromMe(message)) {
             const bots = await Bot.getByNagazap(this.id)
             bots.forEach((bot) => {
-                bot.handleIncomingMessage(
-                    message.text,
-                    message.from,
-                    (text) => this.sendResponse({ number: message.from, text }),
-                    bots.filter((item) => item.id !== bot.id)
-                )
+                bot.handleIncomingMessage({
+                    platform: "nagazap",
+                    message: message.text,
+                    chat_id: message.from,
+                    response: (text, media) => this.sendResponse({ number: message.from, text }),
+                    other_bots: bots.filter((item) => item.id !== bot.id),
+                })
             })
         }
 
@@ -882,10 +889,17 @@ export class Nagazap {
 
         const form: WhatsappApiForm = {
             messaging_product: "whatsapp",
-            type: "text",
+            type: data.media ? data.media.type : "text",
             to: "+55" + number,
             recipient_type: "individual",
-            text: { preview_url: true, body: data.text },
+        }
+
+        if (form.type === "text") {
+            form.text = { preview_url: true, body: data.text }
+        }
+
+        if (form.type === "image" || form.type === "video") {
+            form[form.type] = { link: data.media?.url, caption: data.text }
         }
 
         const message = await this.saveMessage({
