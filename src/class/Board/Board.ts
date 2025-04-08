@@ -250,7 +250,7 @@ export class Board {
         const room = this.rooms.find((room) => (room_id || this.entry_room_id) === room.id)
         if (!room) throw "sala não encontrada nesse quadro"
 
-        if (this.getChat(chat.id)) {
+        if (this.getChatById(chat.id)) {
             return
         }
 
@@ -504,7 +504,33 @@ export class Board {
         throw "chat não encontrado"
     }
 
-    getChat(chat_id: string) {
+    getChatByPlatform(platform: "nagazap" | "washima", platform_id: string, plataform_chat_identifier: string) {
+        for (const room of this.rooms) {
+            for (const chat of room.chats) {
+                if (platform === "nagazap") {
+                    if (chat.washima_id === platform_id && chat.washima_chat_id === plataform_chat_identifier) {
+                        return chat
+                    }
+                } else {
+                    if (chat.nagazap_id === platform_id && chat.phone === plataform_chat_identifier) {
+                        return chat
+                    }
+                }
+            }
+        }
+    }
+
+    getChatByPhone(phone: string) {
+        for (const room of this.rooms) {
+            for (const chat of room.chats) {
+                if (chat.phone === phone) {
+                    return chat
+                }
+            }
+        }
+    }
+
+    getChatById(chat_id: string) {
         try {
             const indexes = this.getChatRoomIndex(chat_id)
             return this.rooms[indexes.room].chats[indexes.chat]
@@ -520,9 +546,9 @@ export class Board {
 
     async transferChat(data: TransferChatForm) {
         const destinationBoard = await this.getDestinationBoard(data.destination_board_id)
-        const chat = this.getChat(data.chat_id)
+        const chat = this.getChatById(data.chat_id)
         if (!chat) return
-        
+
         if (!data.copy) {
             this.removeChat(data.chat_id)
             this.saveRooms()

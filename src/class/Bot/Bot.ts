@@ -10,11 +10,13 @@ import { saveFile } from "../../tools/saveFile"
 import { NagazapMediaForm } from "../Nagazap"
 import { file2base64 } from "../../tools/file2base64"
 import { sleep } from "../../tools/sleep"
+import { NodeAction } from "./NodeAction"
 
 export const bot_include = Prisma.validator<Prisma.BotInclude>()({ washimas: { select: { id: true } }, nagazaps: { select: { id: true } } })
 type BotPrisma = Prisma.BotGetPayload<{ include: typeof bot_include }>
 
 export interface FlowNodeData {
+    [key: string]: any
     onAddChild: (type: "message" | "response") => void
     value: string
     editNode: (node: FlowNode | null) => void
@@ -27,26 +29,10 @@ export interface FlowNodeData {
         name: string
         base64?: string
     }
-    // nodes: FlowNode[]
-    // edges: FlowEdge[]
+    actions?: NodeAction[]
 }
 export interface FlowNode extends Node {
-    data: {
-        onAddChild: (type: "message" | "response") => void
-        value: string
-        editNode: (node: FlowNode | null) => void
-        deleteNode?: (node: FlowNode) => void
-        getChildren: (parentId: string, type?: "direct" | "recursive") => FlowNode[]
-        media?: {
-            url: string
-            mimetype: string
-            type: "audio" | "image" | "video" | "document"
-            name: string
-            base64?: string
-        }
-        // nodes: FlowNode[]
-        // edges: FlowEdge[]
-    }
+    data: FlowNodeData
 }
 
 export interface FlowEdge extends Edge {
@@ -75,6 +61,15 @@ export interface PendingResponse {
     timestamp: number
     chat_id: string
     bot: Bot
+}
+
+export interface BotMessageForm {
+    message: string
+    chat_id: string
+    response: (text: string, media?: WashimaMediaForm | NagazapMediaForm) => Promise<void>
+    other_bots: Bot[]
+    platform: "nagazap" | "washima"
+    platform_id: string
 }
 
 export class Bot {
@@ -220,13 +215,7 @@ export class Bot {
         await prisma.bot.delete({ where: { id: this.id } })
     }
 
-    async handleIncomingMessage(data: {
-        message: string
-        chat_id: string
-        response: (text: string, media?: WashimaMediaForm | NagazapMediaForm) => Promise<void>
-        other_bots: Bot[]
-        platform: "nagazap" | "washima"
-    }) {
+    async handleIncomingMessage(data: BotMessageForm) {
         if (data.other_bots.some((bot) => bot.getActiveChat(data.chat_id))) return
 
         let current_chat = this.getActiveChat(data.chat_id)
@@ -244,17 +233,23 @@ export class Bot {
 
             const bot_responses = this.advanceChat(current_chat, data.message)
             if (bot_responses) {
-                for (const bot_message of bot_responses) {
-                    const media = bot_message.media
+                for (const message_node of bot_responses) {
+                    const media = message_node.media
                         ? data.platform === "washima"
                             ? {
-                                  base64: file2base64("static" + bot_message.media.url.split("static")[1]),
-                                  mimetype: bot_message.media.mimetype,
+                                  base64: file2base64("static" + message_node.media.url.split("static")[1]),
+                                  mimetype: message_node.media.mimetype,
                               }
-                            : { url: bot_message.media.url, type: bot_message.media.type }
+                            : { url: message_node.media.url, type: message_node.media.type }
                         : undefined
 
-                    data.response(bot_message.value, media)
+                    data.response(message_node.value, media)
+                    if (message_node.actions) {
+                        for (const actionDto of message_node.actions) {
+                            const action = new NodeAction(actionDto)
+                            action.run(data)
+                        }
+                    }
                     await sleep(2000)
                 }
 
@@ -346,7 +341,7 @@ export class Bot {
         }
 
         if (answered_node) {
-            const messages: FlowNodeData[] = []
+            const nodesData: FlowNodeData[] = []
             let current_node = answered_node
             let loop = true
 
@@ -365,15 +360,15 @@ export class Bot {
                     chat.current_node_id = next_node.id
                     chat.last_interaction = now()
                     current_node = next_node
-                    messages.push(next_node.data)
+                    nodesData.push(next_node.data)
                 }
             }
 
             this.save()
-            return messages
+            return nodesData
         } else {
             const options = this.getNodeChildren(chat.current_node_id).map((node) => node.data.value)
-            return [{ value: `Não entendi. As opções são:\n* ${options.join("\n* ")}`, media: undefined }]
+            return [{ value: `Não entendi. As opções são:\n* ${options.join("\n* ")}`, media: undefined, actions: undefined }]
         }
     }
 

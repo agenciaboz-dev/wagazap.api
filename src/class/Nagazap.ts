@@ -537,6 +537,7 @@ export class Nagazap {
             bots.forEach((bot) => {
                 bot.handleIncomingMessage({
                     platform: "nagazap",
+                    platform_id: this.id,
                     message: message.text,
                     chat_id: message.from,
                     response: (text, media) => this.sendResponse({ number: message.from, text, media: media as NagazapMediaForm }),

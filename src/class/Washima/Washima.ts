@@ -435,6 +435,7 @@ export class Washima {
                         bots.forEach((bot) => {
                             bot.handleIncomingMessage({
                                 platform: "washima",
+                                platform_id: this.id,
                                 message: message.body,
                                 chat_id: chat.id._serialized,
                                 response: (text, media) => this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm),
