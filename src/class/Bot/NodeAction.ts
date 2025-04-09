@@ -12,7 +12,6 @@ export type ValidAction = "board:room:chat:new"
 export type NodeActionDto = WithoutFunctions<NodeAction>
 
 export interface ActionSettings {
-    target_id: string
     [key: string]: any
 }
 
@@ -32,7 +31,10 @@ export class NodeAction {
     async run(data: BotMessageForm) {
         switch (this.target) {
             case "board:room:chat:new":
-                const board = await Board.find(this.settings.target_id)
+                const settings = this.settings as { board_id?: string; room_id?: string }
+                if (!settings.board_id) return
+
+                const board = await Board.find(settings.board_id)
                 let chat: Chat
                 if (data.platform === "nagazap") {
                     const nagazap = await Nagazap.getById(data.platform_id)
@@ -73,7 +75,7 @@ export class NodeAction {
                             profile_pic: profilePic?.url,
                         })
                 }
-                await board.newChat(chat)
+                await board.newChat(chat, settings.room_id)
         }
     }
 }
