@@ -12,6 +12,7 @@ export type ValidAction = "board:room:chat:new"
 export type NodeActionDto = WithoutFunctions<NodeAction>
 
 export interface ActionSettings {
+    misconfigured?: boolean
     [key: string]: any
 }
 
@@ -29,6 +30,8 @@ export class NodeAction {
     }
 
     async run(data: BotMessageForm) {
+        if (this.settings.misconfigured) return
+
         switch (this.target) {
             case "board:room:chat:new":
                 const settings = this.settings as { board_id?: string; room_id?: string }
@@ -36,6 +39,7 @@ export class NodeAction {
 
                 const board = await Board.find(settings.board_id)
                 let chat: Chat
+                console.log({ chat_id: data.chat_id })
                 if (data.platform === "nagazap") {
                     const nagazap = await Nagazap.getById(data.platform_id)
                     const nagaChat = (await nagazap.getConversations()).get(data.chat_id)!
@@ -76,6 +80,7 @@ export class NodeAction {
                         })
                 }
                 await board.newChat(chat, settings.room_id)
+                board.emit()
         }
     }
 }

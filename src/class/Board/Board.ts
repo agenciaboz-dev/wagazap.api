@@ -271,9 +271,6 @@ export class Board {
     }
 
     async handleMessage(chatDto: ChatDto) {
-        const setting = this.getWashimaSetting(chatDto.washima_id) || this.getNagazapSetting(chatDto.nagazap_id)
-        if (!setting) return false
-
         let chat = new Chat(chatDto)
         const roomWithChat = this.rooms.find((room) =>
             room.chats.find((item) => {
@@ -295,6 +292,9 @@ export class Board {
             await roomWithChat.newMessage(chat)
             await this.saveRooms()
         } else {
+            const setting = this.getWashimaSetting(chatDto.washima_id) || this.getNagazapSetting(chatDto.nagazap_id)
+            if (!setting) return false
+
             await this.newChat(chat, setting.room_id)
         }
 
@@ -507,7 +507,7 @@ export class Board {
     getChatByPlatform(platform: "nagazap" | "washima", platform_id: string, plataform_chat_identifier: string) {
         for (const room of this.rooms) {
             for (const chat of room.chats) {
-                if (platform === "nagazap") {
+                if (platform === "washima") {
                     if (chat.washima_id === platform_id && chat.washima_chat_id === plataform_chat_identifier) {
                         return chat
                     }

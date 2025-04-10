@@ -70,6 +70,10 @@ router.patch("/", async (request: BoardAuthRequest, response: Response) => {
 
 router.delete("/", async (request: BoardAuthRequest, response: Response) => {
     try {
+        const bots = await request.company!.getBots()
+        for (const bot of bots) {
+            await bot.handleBoardDelete(request.board!.id)
+        }
         await request.board!.delete()
         Log.new({ company_id: request.company!.id, text: `deletou o quadro ${request.board!.name}`, user_id: request.user!.id, type: "boards" })
         return response.json(request.board)

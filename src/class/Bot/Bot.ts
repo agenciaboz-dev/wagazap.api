@@ -425,4 +425,23 @@ export class Bot {
             }
         }
     }
+
+    async handleBoardDelete(board_id: string) {
+        let save = false
+        for (const node of this.instance.nodes) {
+            if (node.data.actions) {
+                for (const action of node.data.actions) {
+                    console.log({ action })
+                    if (action.settings.board_id === board_id) {
+                        action.settings.board_id = ""
+                        action.settings.room_id = ""
+                        action.settings.misconfigured = true
+                        save = true
+                    }
+                }
+            }
+        }
+
+        if (save) await this.update({ instance: this.instance })
+    }
 }
