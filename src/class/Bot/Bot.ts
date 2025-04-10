@@ -18,6 +18,7 @@ type BotPrisma = Prisma.BotGetPayload<{ include: typeof bot_include }>
 export interface FlowNodeData {
     [key: string]: any
     onAddChild: (type: "message" | "response") => void
+    addLoop: (options: { from: string; to: string }) => void
     value: string
     editNode: (node: FlowNode | null) => void
     deleteNode?: (node: FlowNode) => void
@@ -30,6 +31,7 @@ export interface FlowNodeData {
         base64?: string
     }
     actions?: NodeAction[]
+    next_node_id?: string
 }
 export interface FlowNode extends Node {
     data: FlowNodeData
@@ -58,7 +60,8 @@ export type BotForm = Omit<WithoutFunctions<Bot>, "id" | "created_at" | "trigger
 
 export interface PendingResponse {
     response: (text: string) => Promise<void>
-    timestamp: number
+    expiry?: number
+    idleness?: number
     chat_id: string
     bot: Bot
 }
@@ -83,8 +86,11 @@ export class Bot {
     company_id: string
     nagazap_ids: string[]
     washima_ids: string[]
-    expiry_minutes: number
     fuzzy_threshold: number
+    expiry_minutes: number
+    expiry_message: string
+    idleness_minutes: number
+    idleness_message: string
 
     static pending_response = new Map<string, PendingResponse>()
     static expiry_interval = setInterval(() => Bot.checkForExpiredChats(), 1000 * 10)
@@ -103,6 +109,9 @@ export class Bot {
                 washimas: { connect: data.washima_ids.map((id) => ({ id })) },
                 expiry_minutes: data.expiry_minutes,
                 fuzzy_threshold: data.fuzzy_threshold,
+                expiry_message: data.expiry_message,
+                idleness_minutes: data.idleness_minutes,
+                idleness_message: data.idleness_message,
             },
             include: bot_include,
         })
@@ -128,12 +137,18 @@ export class Bot {
     }
 
     static async checkForExpiredChats() {
-        Bot.pending_response.forEach((item, key) => {
-            if (now() >= item.timestamp) {
-                item.response("Esta conversa expirou. Quando quiser, comece de novo.")
+        for (const map of Bot.pending_response) {
+            const [key, item] = map
+            if (item.expiry && now() >= item.expiry) {
+                item.response(item.bot.expiry_message)
                 item.bot.closeChat(key)
             }
-        })
+
+            if (item.idleness && now() >= item.idleness) {
+                item.response(item.bot.idleness_message)
+                item.idleness = undefined
+            }
+        }
     }
 
     constructor(data: BotPrisma) {
@@ -149,6 +164,9 @@ export class Bot {
         this.nagazap_ids = data.nagazaps.map((item) => item.id)
         this.expiry_minutes = data.expiry_minutes
         this.fuzzy_threshold = data.fuzzy_threshold
+        this.expiry_message = data.expiry_message
+        this.idleness_minutes = data.idleness_minutes
+        this.idleness_message = data.idleness_message
 
         // console.log(this)
     }
@@ -166,6 +184,9 @@ export class Bot {
         this.nagazap_ids = data.nagazaps.map((item) => item.id)
         this.expiry_minutes = data.expiry_minutes
         this.fuzzy_threshold = data.fuzzy_threshold
+        this.expiry_message = data.expiry_message
+        this.idleness_minutes = data.idleness_minutes
+        this.idleness_message = data.idleness_message
     }
 
     async update(data: Partial<Bot>) {
@@ -198,8 +219,11 @@ export class Bot {
                 nagazaps: data.nagazap_ids ? { set: [], connect: data.nagazap_ids.map((id) => ({ id })) } : undefined,
                 washimas: data.washima_ids ? { set: [], connect: data.washima_ids.map((id) => ({ id })) } : undefined,
                 instance: JSON.stringify(data.instance),
-                expiry_minutes: data.expiry_minutes,
                 fuzzy_threshold: data.fuzzy_threshold,
+                expiry_minutes: data.expiry_minutes,
+                expiry_message: data.expiry_message,
+                idleness_minutes: data.idleness_minutes,
+                idleness_message: data.idleness_message,
             },
             include: bot_include,
         })
@@ -253,12 +277,15 @@ export class Bot {
                     await sleep(2000)
                 }
 
-                Bot.pending_response.set(current_chat.chat_id, {
-                    chat_id: current_chat.chat_id,
-                    response: data.response,
-                    timestamp: now() + 1000 * 60 * this.expiry_minutes,
-                    bot: this,
-                })
+                if (this.expiry_minutes > 0 || this.idleness_minutes > 0) {
+                    Bot.pending_response.set(current_chat.chat_id, {
+                        chat_id: current_chat.chat_id,
+                        response: data.response,
+                        expiry: this.expiry_minutes > 0 ? now() + 1000 * 60 * this.expiry_minutes : undefined,
+                        idleness: this.idleness_minutes > 0 ? now() + 1000 * 60 * this.idleness_minutes : undefined,
+                        bot: this,
+                    })
+                }
             }
         }
     }
@@ -295,6 +322,10 @@ export class Bot {
         this.triggered += 1
 
         return chat
+    }
+
+    getNode(node_id: string) {
+        return this.instance.nodes.find((node) => node.id === node_id)
     }
 
     getNodeChildren(nodeId: string, type: "direct" | "recursive" = "direct") {
@@ -346,7 +377,7 @@ export class Bot {
             let loop = true
 
             while (loop) {
-                const next_node = this.getNextNode(current_node.id)
+                const next_node = current_node.data.next_node_id ? this.getNode(current_node.data.next_node_id) : this.getNextNode(current_node.id)
                 if (!next_node) {
                     loop = false
                     this.closeChat(chat.chat_id)
