@@ -142,12 +142,14 @@ router.get("/media-metadata", async (request: Request, response: Response) => {
 router.get("/search", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
     const search = request.query.search as string | undefined
+    const target = request.query.target as "chats" | "messages" | undefined
+    const chat_id = request.query.chat_id as string | undefined
 
-    if (washima_id) {
+    if (washima_id && search) {
         try {
             const washima = Washima.find(washima_id)
             if (washima) {
-                const result = await washima.search(search || "")
+                const result = await washima.search(search, target, chat_id)
                 response.json(result)
             }
         } catch (error) {

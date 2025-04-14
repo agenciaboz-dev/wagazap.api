@@ -814,32 +814,31 @@ export class Washima {
         return deletion.count
     }
 
-    async search(value: string) {
-        // const matchingChats = this.chats.filter((chat) => chat.name)
-        const chatsFuse = new Fuse(this.chats, {
-            includeScore: true,
-            keys: ["name"],
-            threshold: 0.2, // Lower threshold for closer matches
-            ignoreLocation: true, // Ignores the location of the match which allows for more general matching
-            minMatchCharLength: 2, // Minimum character length of matches to consider
-        })
-        const chatsResults = chatsFuse.search(value).map((result) => result.item)
+    async search(value: string, target: "chats" | "messages" = "chats", chat_id?: string) {
+        if (target === "chats") {
+            const chatsFuse = new Fuse(this.chats, {
+                includeScore: true,
+                keys: ["name"],
+                threshold: 0.2, // Lower threshold for closer matches
+                ignoreLocation: true, // Ignores the location of the match which allows for more general matching
+                minMatchCharLength: 2, // Minimum character length of matches to consider
+            })
+            const chatsResults = chatsFuse.search(value).map((result) => result.item)
+            chatsResults.sort((a, b) => b.lastMessage.timestamp - a.lastMessage.timestamp)
 
-        const allMessagesResults = await WashimaMessage.search(value)
-        const messagesResults = allMessagesResults.filter((message) => this.chats.find((chat) => chat.id._serialized === message.chat_id))
+            return chatsResults
+        }
 
-        messagesResults.forEach((message) => {
-            if (message.to !== this.info.wid._serialized && message.from !== this.info.wid._serialized) return
+        if (target === "messages") {
+            const allMessagesResults = await WashimaMessage.search(value, chat_id)
+            const messagesResults = allMessagesResults
+                .filter((message) => this.chats.find((chat) => chat.id._serialized === message.chat_id))
+                .filter((message) => message.to === this.info.wid._serialized || message.from === this.info.wid._serialized)
 
-            const chat = this.chats.find((chat) => chat.id._serialized === message.chat_id)
-            if (chat) {
-                // @ts-ignore
-                chatsResults.push({ ...chat, lastMessage: message })
-            }
-        })
-        chatsResults.sort((a, b) => b.lastMessage.timestamp - a.lastMessage.timestamp)
+            return messagesResults
+        }
 
-        return chatsResults
+        return []
     }
 
     toJSON() {

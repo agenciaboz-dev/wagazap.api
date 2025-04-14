@@ -62,8 +62,8 @@ export class WashimaMessage {
         return data.map((item) => new WashimaMessage(item))
     }
 
-    static async search(value: string) {
-        const data = await prisma.washimaMessage.findMany({ orderBy: { timestamp: "desc" } })
+    static async search(value: string, chat_id?: string) {
+        const data = await prisma.washimaMessage.findMany({ orderBy: { timestamp: "desc" }, where: { chat_id } })
         const all_messages = data.map((item) => new WashimaMessage(item))
         const messagesFuse = new Fuse(all_messages, {
             includeScore: true,
