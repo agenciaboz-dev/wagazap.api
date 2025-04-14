@@ -5,7 +5,7 @@ import { OvenForm, WhatsappApiForm, WhatsappForm, WhatsappTemplateComponent } fr
 import { UploadedFile } from "express-fileupload"
 import * as fs from "fs"
 import { getIoInstance } from "../io/socket"
-import { BlacklistLog, FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappBusiness/Logs"
+import { FailedMessageLog, SentMessageLog } from "../types/shared/Meta/WhatsappBusiness/Logs"
 import { HandledError, HandledErrorCode } from "./HandledError"
 import { WithoutFunctions } from "./helpers"
 import { BusinessInfo } from "../types/shared/Meta/WhatsappBusiness/BusinessInfo"
@@ -245,6 +245,12 @@ export interface NagaChat {
     lastMessage: NagaMessage
 }
 
+export interface BlacklistLog {
+    timestamp: string
+    number: string
+    name?: string
+}
+
 export class Nagazap {
     id: string
     token: string
@@ -405,7 +411,7 @@ export class Nagazap {
         const new_list: BlacklistLog[] = [
             ...old_format.map((item) => {
                 const matching_number_message = this.sentMessages.find((message) => message.data.contacts[0].wa_id.slice(2) === item)
-                return { number: item, timestamp: matching_number_message?.timestamp || first_message?.timestamp || "0" }
+                return { number: item, timestamp: matching_number_message?.timestamp || first_message?.timestamp || "0", name: item }
             }),
             ...new_format,
         ]
@@ -529,7 +535,7 @@ export class Nagazap {
         io.emit(`nagazap:${this.id}:message`, message)
 
         if (message.text.toLowerCase() == this.blacklistTrigger) {
-            this.addToBlacklist(message.from)
+            this.addToBlacklist(message.from, message.name)
         }
 
         if (!this.isMessageFromMe(message)) {
@@ -551,9 +557,9 @@ export class Nagazap {
         return message
     }
 
-    async addToBlacklist(number: string) {
+    async addToBlacklist(number: string, name: string) {
         if (this.blacklist.find((item) => item.number === number)) return
-        this.blacklist.push({ number, timestamp: new Date().getTime().toString() })
+        this.blacklist.push({ number, timestamp: new Date().getTime().toString(), name })
         await prisma.nagazap.update({ where: { id: this.id }, data: { blacklist: JSON.stringify(this.blacklist) } })
         console.log(`número ${number} adicionado a blacklist`)
         this.emit()
