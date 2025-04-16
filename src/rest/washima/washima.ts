@@ -189,7 +189,7 @@ router.post("/", async (request: UserRequest, response: Response) => {
         Log.new({
             company_id: data.company_id,
             user_id: request.user!.id,
-            text: `adicionou ${data.name} - ${data.number} no Business`,
+            text: `adicionou ${data.name} no Business`,
             type: "washima",
         })
         response.json(washima)

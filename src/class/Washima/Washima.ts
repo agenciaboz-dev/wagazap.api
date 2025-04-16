@@ -27,15 +27,16 @@ import path from "path"
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
 export type WashimaMediaPrisma = Prisma.WashimaMediaGetPayload<{}>
 export type WashimaProfilePicPrisma = Prisma.WashimaProfilePicGetPayload<{}>
+export type WashimaStatus = "loading" | "ready" | "qrcode" | "error"
 export interface WashimaDiskMetrics {
     messages: number
     media: number
 }
 
-export type WashimaForm = Omit<
-    WithoutFunctions<Washima>,
-    "id" | "created_at" | "active" | "client" | "qrcode" | "ready" | "info" | "chats" | "contact" | "companies" | "syncing"
-> & { company_id: string }
+export interface WashimaForm {
+    company_id: string
+    name: string
+}
 
 export interface WashimaMessageId {
     fromMe: boolean
@@ -132,6 +133,7 @@ export class Washima {
 
     companies: Company[] = []
     syncing = false
+    status: WashimaStatus = "loading"
 
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
@@ -179,7 +181,7 @@ export class Washima {
                 id: uid(),
                 created_at: new Date().getTime().toString(),
                 name: data.name,
-                number: data.number,
+                number: "",
                 companies: { connect: { id: data.company_id } },
             },
         })
@@ -194,6 +196,15 @@ export class Washima {
         const deleted = await prisma.washima.delete({ where: { id: washima_id } })
         const washima = Washima.find(deleted.id)
         if (washima) {
+            const chats = await washima.client.getChats()
+            for (const chat of chats) {
+                if (chat.isGroup) {
+                    continue
+                }
+
+                await prisma.washimaMessage.deleteMany({ where: { washima_id, chat_id: chat.id._serialized } })
+            }
+
             await washima.client.destroy()
             Washima.washimas = Washima.washimas.filter((item) => item.id !== washima_id)
             await deleteDirectory(`static/washima/auth/whatsapp.auth.${washima.id}`)
@@ -283,9 +294,10 @@ export class Washima {
 
     async initialize(queue?: Washima[]) {
         console.log(`initializing ${this.name} - ${this.number}`)
+        this.status = "loading"
         const next_washima = queue?.pop()
         if (next_washima) {
-            await next_washima.initialize(queue)
+            next_washima.initialize(queue)
         }
 
         try {
@@ -299,26 +311,33 @@ export class Washima {
             //* CLIENT EVENTS
 
             this.client.on("qr", (qr) => {
-                if (!this.qrcode) {
-                    const next_washima = queue?.pop()
-                    if (next_washima) {
-                        next_washima.initialize(queue)
-                    }
-                }
+                // if (!this.qrcode) {
+                //     const next_washima = queue?.pop()
+                //     if (next_washima) {
+                //         next_washima.initialize(queue)
+                //     }
+                // }
 
                 this.qrcode = qr
+                this.status = "qrcode"
                 // console.log("whatsapp is disconnected. QrCode ready: " + this.qrcode)
                 // qrcode.generate(qr, { small: true })
 
                 const io = getIoInstance()
-                io.emit("washima:qrcode", this.qrcode, this.id)
+                io.emit("washima:update", this)
+            })
+
+            this.client.on("authenticated", (session) => {
+                console.log(JSON.stringify(session))
             })
 
             this.client.on("ready", async () => {
                 console.log(`${this.name} - ${this.number} client is ready, initializing data`)
                 this.qrcode = ""
                 this.ready = false
+
                 io.emit("washima:ready", this.id)
+                this.status = "loading"
                 io.emit("washima:update", this)
 
                 io.emit(`washima:${this.id}:init`, "Configurando metadados", 1)
@@ -334,6 +353,8 @@ export class Washima {
                 io.emit(`washima:${this.id}:init`, "Pronto", 4)
                 console.log(`washima:${this.id}:init`, "Pronto", 4)
 
+                this.status = "ready"
+                this.number = this.info.wid.user.slice(2)
                 io.emit("washima:update", this)
             })
 
@@ -586,6 +607,9 @@ export class Washima {
     }
 
     async restart() {
+        this.status = "loading"
+        const io = getIoInstance()
+        io.emit("washima:update", this)
         try {
             console.log("merda")
             this.qrcode = ""
@@ -596,13 +620,14 @@ export class Washima {
             console.log("merda 4")
             await this.client.initialize()
             console.log("merda 5")
-            const io = getIoInstance()
             console.log("merda 6")
-            io.emit("washima:update", this)
             console.log("merda 7")
         } catch (error) {
             console.log("error initializing")
             console.log(error)
+            this.status = "error"
+        } finally {
+            io.emit("washima:update", this)
         }
     }
 
@@ -690,6 +715,8 @@ export class Washima {
 
         this.syncing = true
         const io = getIoInstance()
+        this.status = "loading"
+        io.emit("washima:update", this)
 
         console.log(`fetching messages for washima ${this.name}`)
 
@@ -734,6 +761,7 @@ export class Washima {
                     } catch (error) {
                         if (error instanceof PrismaClientKnownRequestError && error.meta?.target === "PRIMARY") {
                             try {
+                                continue
                                 const washima_message = await WashimaMessage.update(message)
                                 chatsLog[chat_index].data.messages = true
                             } catch (error) {
@@ -773,6 +801,8 @@ export class Washima {
 
         writeFileSync(filePath, JSON.stringify(formattedLogs))
         this.syncing = false
+        this.status = "ready"
+        io.emit("washima:update", this)
     }
 
     async getTableUsage(table: string, megabyte?: boolean) {
