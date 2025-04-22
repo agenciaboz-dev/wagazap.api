@@ -806,6 +806,10 @@ export class Washima {
                     }
                 }
                 chatsLog[chat_index].data.chat = true
+
+                if (!chat.lastMessage && chatMessages.length > 0) {
+                    chat.lastMessage = chatMessages[0]
+                }
             } catch (error) {
                 const text = `failed to fetch messages for chat ${chat.name} due to ${error}`
                 console.log(text)
