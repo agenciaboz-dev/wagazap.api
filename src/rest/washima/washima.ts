@@ -189,7 +189,7 @@ router.post("/", async (request: UserRequest, response: Response) => {
         Log.new({
             company_id: data.company_id,
             user_id: request.user!.id,
-            text: `adicionou ${data.name} no Business`,
+            text: `criou um novo Business`,
             type: "washima",
         })
         response.json(washima)
@@ -198,7 +198,6 @@ router.post("/", async (request: UserRequest, response: Response) => {
         io.emit("washima:update", washima)
 
         await washima.initialize()
-        await washima.fetchAndSaveAllMessages()
     } catch (error) {
         console.log(error)
         response.status(500).send(error)

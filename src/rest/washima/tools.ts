@@ -3,6 +3,7 @@ import { Washima } from "../../class/Washima/Washima"
 import { WashimaMessage } from "../../class/Washima/WashimaMessage"
 import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
 import { Log } from "../../class/Log"
+import { CompanyRequest, requireCompanyId } from "../../middlewares/requireCompanyId"
 const router = express.Router()
 
 router.get("/disk-usage", async (request: Request, response: Response) => {
@@ -41,8 +42,9 @@ router.get("/copy-chat", async (request: Request, response: Response) => {
 })
 
 router.use(requireUserId)
+router.use(requireCompanyId)
 
-router.delete("/media", async (request: UserRequest, response: Response) => {
+router.delete("/media", async (request: UserRequest & CompanyRequest, response: Response) => {
     const data = request.body as { washima_id: string }
 
     try {
@@ -51,7 +53,7 @@ router.delete("/media", async (request: UserRequest, response: Response) => {
 
         if (washima) {
             Log.new({
-                company_id: washima.companies[0].id,
+                company_id: request.company!.id,
                 user_id: request.user!.id,
                 text: `deletou todas as mídias de ${washima.name} - ${washima.number} no Business`,
                 type: "washima",
@@ -65,7 +67,7 @@ router.delete("/media", async (request: UserRequest, response: Response) => {
     }
 })
 
-router.delete("/messages", async (request: UserRequest, response: Response) => {
+router.delete("/messages", async (request: UserRequest & CompanyRequest, response: Response) => {
     const data = request.body as { washima_id: string }
 
     try {
@@ -73,7 +75,7 @@ router.delete("/messages", async (request: UserRequest, response: Response) => {
         const deletion_count = await washima.clearMessages()
         if (washima) {
             Log.new({
-                company_id: washima.companies[0].id,
+                company_id: request.company!.id,
                 user_id: request.user!.id,
                 text: `deletou todas as mensagens de ${washima.name} - ${washima.number} no Business`,
                 type: "washima",

@@ -35,7 +35,6 @@ export interface WashimaDiskMetrics {
 
 export interface WashimaForm {
     company_id: string
-    name: string
 }
 
 export interface WashimaMessageId {
@@ -134,6 +133,7 @@ export class Washima {
     companies: Company[] = []
     syncing = false
     status: WashimaStatus = "loading"
+    syncWhenReady: boolean = false
 
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
@@ -180,7 +180,7 @@ export class Washima {
             data: {
                 id: uid(),
                 created_at: new Date().getTime().toString(),
-                name: data.name,
+                name: "",
                 number: "",
                 companies: { connect: { id: data.company_id } },
             },
@@ -189,6 +189,7 @@ export class Washima {
         const washima = new Washima(washima_prisma)
 
         Washima.push(washima)
+        washima.syncWhenReady = true
         return washima
     }
 
@@ -196,13 +197,17 @@ export class Washima {
         const deleted = await prisma.washima.delete({ where: { id: washima_id } })
         const washima = Washima.find(deleted.id)
         if (washima) {
-            const chats = await washima.client.getChats()
-            for (const chat of chats) {
-                if (chat.isGroup) {
-                    continue
-                }
+            try {
+                const chats = await washima.client.getChats()
+                for (const chat of chats) {
+                    if (chat.isGroup) {
+                        continue
+                    }
 
-                await prisma.washimaMessage.deleteMany({ where: { washima_id, chat_id: chat.id._serialized } })
+                    await prisma.washimaMessage.deleteMany({ where: { washima_id, chat_id: chat.id._serialized } })
+                }
+            } catch (error) {
+                console.log(error)
             }
 
             await washima.client.destroy()
@@ -354,8 +359,17 @@ export class Washima {
                 console.log(`washima:${this.id}:init`, "Pronto", 4)
 
                 this.status = "ready"
+
                 this.number = this.info.wid.user.slice(2)
+                this.name = this.info.pushname
+                await this.update({ number: this.number, name: this.name })
+
                 io.emit("washima:update", this)
+
+                if (this.syncWhenReady) {
+                    this.fetchAndSaveAllMessages()
+                    this.syncWhenReady = false
+                }
             })
 
             this.client.on("disconnected", async () => {
@@ -561,6 +575,7 @@ export class Washima {
         try {
             const chat = await this.client.getChatById(id)
             const messages = await WashimaMessage.getChatMessages(this.id, id, chat.isGroup, offset)
+            console.log(messages)
 
             if (chat.isGroup) {
                 const group_updates = await WashimaGroupUpdate.getGroupUpdates(id)
@@ -718,6 +733,7 @@ export class Washima {
         this.status = "loading"
         io.emit("washima:update", this)
 
+        await sleep(1000)
         console.log(`fetching messages for washima ${this.name}`)
 
         const chats = options?.groupOnly ? this.chats.filter((chat) => chat.isGroup) : this.chats
@@ -734,7 +750,7 @@ export class Washima {
 
         for (const [chat_index, chat] of chats.entries()) {
             console.log(`loading messages for chat ${chat.name}. ${chat_index + 1}/${chats.length}`)
-            io.emit(`washima:${this.id}:sync:chat`, chat_index + 1, chats.length)
+            io.emit(`washima:${this.id}:sync:progress`, { chat: chat_index + 1, total_chats: chats.length })
             chatsLog[chat_index].data.started = true
 
             try {
@@ -747,7 +763,12 @@ export class Washima {
                     }
 
                     console.log(`fetching message ${index + 1}/${messages.length} from chat ${chat_index + 1}/${chats.length}`)
-                    io.emit(`washima:${this.id}:sync:messages`, index + 1, messages.length)
+                    io.emit(`washima:${this.id}:sync:progress`, {
+                        message: index + 1,
+                        total_messages: messages.length,
+                        chat: chat_index + 1,
+                        total_chats: chats.length,
+                    })
 
                     try {
                         const washima_message = await WashimaMessage.new({
