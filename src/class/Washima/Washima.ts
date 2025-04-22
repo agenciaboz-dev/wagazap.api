@@ -133,7 +133,6 @@ export class Washima {
     companies: Company[] = []
     syncing = false
     status: WashimaStatus = "loading"
-    syncWhenReady: boolean = false
 
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
@@ -189,7 +188,6 @@ export class Washima {
         const washima = new Washima(washima_prisma)
 
         Washima.push(washima)
-        washima.syncWhenReady = true
         return washima
     }
 
@@ -366,10 +364,7 @@ export class Washima {
 
                 io.emit("washima:update", this)
 
-                if (this.syncWhenReady) {
-                    this.fetchAndSaveAllMessages()
-                    this.syncWhenReady = false
-                }
+                this.fetchAndSaveAllMessages()
             })
 
             this.client.on("disconnected", async () => {
@@ -725,13 +720,18 @@ export class Washima {
         return new_cache
     }
 
+    emit() {
+        const io = getIoInstance()
+        io.emit("washima:update", this)
+    }
+
     async fetchAndSaveAllMessages(options?: { groupOnly?: boolean }) {
         if (!this.ready || !this.chats.length || this.syncing) return
 
         this.syncing = true
         const io = getIoInstance()
         this.status = "loading"
-        io.emit("washima:update", this)
+        this.emit()
 
         await sleep(1000)
         console.log(`fetching messages for washima ${this.name}`)
@@ -748,20 +748,26 @@ export class Washima {
             },
         }))
 
+        const existingMessages = await WashimaMessage.getWashimaMessages(this.id)
+
         for (const [chat_index, chat] of chats.entries()) {
             console.log(`loading messages for chat ${chat.name}. ${chat_index + 1}/${chats.length}`)
             io.emit(`washima:${this.id}:sync:progress`, { chat: chat_index + 1, total_chats: chats.length })
             chatsLog[chat_index].data.started = true
 
             try {
-                await chat.syncHistory()
-                const messages = await chat.fetchMessages({ limit: Number.MAX_VALUE })
+                const chatMessages = await chat.fetchMessages({ limit: Number.MAX_VALUE })
+                const existingChatMessages = chat.isGroup
+                    ? await WashimaMessage.getChatMessages(this.id, chat.id._serialized, true, 0, null)
+                    : existingMessages
+
+                console.log(existingChatMessages.length)
+
+                const messages = chatMessages.filter(
+                    (message) => message.from !== "0@c.us" && !existingChatMessages.find((item) => item.sid === message.id._serialized)
+                )
 
                 for (const [index, message] of messages.entries()) {
-                    if (message.from === "0@c.us") {
-                        continue
-                    }
-
                     console.log(`fetching message ${index + 1}/${messages.length} from chat ${chat_index + 1}/${chats.length}`)
                     io.emit(`washima:${this.id}:sync:progress`, {
                         message: index + 1,
