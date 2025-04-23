@@ -65,6 +65,8 @@ export interface PendingResponse {
     idleness?: number
     chat_id: string
     bot: Bot
+    platform: "washima" | "nagazap"
+    platform_id: string
 }
 
 export interface PausedInteraction {
@@ -147,6 +149,12 @@ export class Bot {
         for (const map of Bot.pending_response) {
             const [key, item] = map
             const bot = await Bot.getById(item.bot.id)
+
+            if (!bot.washima_ids.includes(item.platform_id) && !bot.nagazap_ids.includes(item.platform_id)) {
+                bot.closeChat(key)
+                continue
+            }
+
             if (item.expiry && now() >= item.expiry) {
                 if (!bot.isPaused(item.chat_id)) {
                     item.response(bot.expiry_message)
@@ -320,6 +328,8 @@ export class Bot {
                         expiry: this.expiry_minutes > 0 ? now() + 1000 * 60 * this.expiry_minutes : undefined,
                         idleness: this.idleness_minutes > 0 ? now() + 1000 * 60 * this.idleness_minutes : undefined,
                         bot: this,
+                        platform: data.platform,
+                        platform_id: data.platform_id,
                     })
                 }
             }
