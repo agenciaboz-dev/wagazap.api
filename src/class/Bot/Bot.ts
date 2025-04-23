@@ -147,7 +147,6 @@ export class Bot {
         for (const map of Bot.pending_response) {
             const [key, item] = map
             const bot = await Bot.getById(item.bot.id)
-            console.log(bot, bot.isPaused(item.chat_id))
             if (item.expiry && now() >= item.expiry) {
                 if (!bot.isPaused(item.chat_id)) {
                     item.response(bot.expiry_message)
@@ -261,7 +260,6 @@ export class Bot {
 
     isPaused(chat_id: string) {
         const paused_interaction = this.paused_chats.get(chat_id)
-        console.log({ paused_interaction, todos: this.paused_chats })
 
         if (paused_interaction) {
             if (paused_interaction.expiry < new Date().getTime()) {
@@ -277,7 +275,6 @@ export class Bot {
     }
 
     async handleIncomingMessage(data: BotMessageForm) {
-        console.log(this.paused_chats)
         if (data.other_bots.some((bot) => bot.getActiveChat(data.chat_id))) return
         if (this.isPaused(data.chat_id)) return
 
