@@ -186,6 +186,7 @@ model Bot {
 
     instance        Json
     active_on       Json
+    paused_on       Json?
 
     company_id      String
     company         Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)

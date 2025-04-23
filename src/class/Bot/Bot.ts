@@ -67,6 +67,11 @@ export interface PendingResponse {
     bot: Bot
 }
 
+export interface PausedInteraction {
+    expiry: number
+    chat_id: string
+}
+
 export interface BotMessageForm {
     message: string
     chat_id: string
@@ -92,6 +97,7 @@ export class Bot {
     expiry_message: string
     idleness_minutes: number
     idleness_message: string
+    paused_chats = new Map<string, PausedInteraction>()
 
     static pending_response = new Map<string, PendingResponse>()
     static expiry_interval = setInterval(() => Bot.checkForExpiredChats(), 1000 * 10)
@@ -140,13 +146,19 @@ export class Bot {
     static async checkForExpiredChats() {
         for (const map of Bot.pending_response) {
             const [key, item] = map
+            const bot = await Bot.getById(item.bot.id)
+            console.log(bot, bot.isPaused(item.chat_id))
             if (item.expiry && now() >= item.expiry) {
-                item.response(item.bot.expiry_message)
-                item.bot.closeChat(key)
+                if (!bot.isPaused(item.chat_id)) {
+                    item.response(bot.expiry_message)
+                }
+                bot.closeChat(key)
             }
 
             if (item.idleness && now() >= item.idleness) {
-                item.response(item.bot.idleness_message)
+                if (!bot.isPaused(item.chat_id)) {
+                    item.response(bot.idleness_message)
+                }
                 item.idleness = undefined
             }
         }
@@ -168,6 +180,13 @@ export class Bot {
         this.expiry_message = data.expiry_message
         this.idleness_minutes = data.idleness_minutes
         this.idleness_message = data.idleness_message
+
+        if (data.paused_on) {
+            const list = JSON.parse(data.paused_on as string) as PausedInteraction[]
+            for (const item of list) {
+                this.paused_chats.set(item.chat_id, { chat_id: item.chat_id, expiry: item.expiry })
+            }
+        }
 
         // console.log(this)
     }
@@ -240,8 +259,27 @@ export class Bot {
         await prisma.bot.delete({ where: { id: this.id } })
     }
 
+    isPaused(chat_id: string) {
+        const paused_interaction = this.paused_chats.get(chat_id)
+        console.log({ paused_interaction, todos: this.paused_chats })
+
+        if (paused_interaction) {
+            if (paused_interaction.expiry < new Date().getTime()) {
+                this.paused_chats.delete(chat_id)
+                this.save()
+                return false
+            }
+
+            return true
+        }
+
+        return false
+    }
+
     async handleIncomingMessage(data: BotMessageForm) {
+        console.log(this.paused_chats)
         if (data.other_bots.some((bot) => bot.getActiveChat(data.chat_id))) return
+        if (this.isPaused(data.chat_id)) return
 
         let current_chat = this.getActiveChat(data.chat_id)
 
@@ -272,7 +310,7 @@ export class Bot {
                     if (message_node.actions) {
                         for (const actionDto of message_node.actions) {
                             const action = new NodeAction(actionDto)
-                            action.run(data)
+                            action.run(data, this)
                         }
                     }
                     await sleep(2000)
@@ -410,7 +448,12 @@ export class Bot {
     }
 
     async save() {
-        await prisma.bot.update({ where: { id: this.id }, data: { active_on: JSON.stringify(this.active_on), triggered: this.triggered } })
+        const paused_on: PausedInteraction[] = []
+        this.paused_chats.forEach((item) => paused_on.push(item))
+        await prisma.bot.update({
+            where: { id: this.id },
+            data: { active_on: JSON.stringify(this.active_on), triggered: this.triggered, paused_on: JSON.stringify(paused_on) },
+        })
     }
 
     closeChat(chat_id: string) {

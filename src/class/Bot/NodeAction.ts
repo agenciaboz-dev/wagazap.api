@@ -2,12 +2,12 @@ import { uid } from "uid"
 import { Board } from "../Board/Board"
 import { Chat, ChatDto } from "../Board/Chat"
 import { WithoutFunctions } from "../helpers"
-import { BotMessageForm } from "./Bot"
+import { Bot, BotMessageForm } from "./Bot"
 import { Nagazap } from "../Nagazap"
 import { Washima } from "../Washima/Washima"
 import { WashimaMessage } from "../Washima/WashimaMessage"
 
-export type ValidAction = "board:room:chat:new"
+export type ValidAction = "board:room:chat:new" | "bot:end"
 
 export type NodeActionDto = WithoutFunctions<NodeAction>
 
@@ -29,11 +29,11 @@ export class NodeAction {
         this.settings = data.settings
     }
 
-    async run(data: BotMessageForm) {
+    async run(data: BotMessageForm, bot: Bot) {
         if (this.settings.misconfigured) return
 
         switch (this.target) {
-            case "board:room:chat:new":
+            case "board:room:chat:new": {
                 const settings = this.settings as { board_id?: string; room_id?: string }
                 if (!settings.board_id) return
 
@@ -81,6 +81,14 @@ export class NodeAction {
                 }
                 await board.newChat(chat, settings.room_id)
                 board.emit()
+            }
+
+            case "bot:end": {
+                const settings = this.settings as { expiry: number }
+                bot.paused_chats.set(data.chat_id, { chat_id: data.chat_id, expiry: new Date().getTime() + 1000 * 60 * settings.expiry })
+                bot.save()
+                bot.closeChat(data.chat_id)
+            }
         }
     }
 }
