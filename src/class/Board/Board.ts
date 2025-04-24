@@ -21,12 +21,14 @@ export interface BoardForm {
 export interface BoardWashimaSettings {
     washima_id: string
     washima_name: string
+    unread_only: boolean
     room_id?: string
 }
 
 export interface BoardNagazapSettings {
     nagazap_id: string
     nagazap_name: string
+    unread_only: boolean
     room_id?: string
 }
 
@@ -341,6 +343,7 @@ export class Board {
     }
 
     async syncWashima(data: BoardWashimaSettings) {
+        console.log({ data })
         const washima = Washima.find(data.washima_id)
         if (washima) {
             console.log(`syncing ${washima.name}`)
@@ -359,7 +362,7 @@ export class Board {
                 }
 
                 const washima_chat = await washima.client.getChatById(message.chat_id)
-                if (washima_chat.unreadCount === 0) {
+                if (data.unread_only && washima_chat.unreadCount === 0) {
                     continue
                 }
 
@@ -431,7 +434,7 @@ export class Board {
             console.log(`syncing nagazap ${nagazap.displayName}`)
             const conversations = await nagazap.getConversations()
 
-            const chats: Chat[] = []
+            let chats: Chat[] = []
             conversations.forEach((messages) =>
                 chats.push(
                     new Chat({
@@ -444,6 +447,10 @@ export class Board {
                     })
                 )
             )
+
+            if (data.unread_only) {
+                chats = chats.filter((chat) => (chat.last_message as NagaMessage).name !== nagazap.displayPhone!)
+            }
 
             const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))
             this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]
