@@ -276,7 +276,7 @@ export class Board {
             room.chats.find((item) => {
                 if (
                     (item.washima_id === chat.washima_id && item.washima_chat_id === chatDto.washima_chat_id) ||
-                    (item.nagazap_id && item.phone === chatDto.phone)
+                    (item.nagazap_id === chat.nagazap_id && item.phone === chatDto.phone)
                 ) {
                     chat = item
                     chat.unread_count = chatDto.unread_count
