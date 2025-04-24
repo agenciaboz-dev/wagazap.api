@@ -631,6 +631,7 @@ export class Nagazap {
                 timestamp: (new Date().getTime() / 1000).toString(),
                 type: "template",
                 template: form.template,
+                from_bot: null,
             })
         } catch (error) {
             if (error instanceof AxiosError) {
@@ -915,6 +916,7 @@ export class Nagazap {
             text: data.text,
             timestamp: (new Date().getTime() / 1000).toString(),
             type: "text",
+            from_bot: null,
         })
         socket?.emit("nagazap:response", message)
 

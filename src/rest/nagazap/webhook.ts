@@ -61,6 +61,7 @@ router.post("/messages", async (request: Request, response: Response) => {
                             timestamp: message.timestamp,
                             name: change.value.contacts[0].profile?.name || "",
                             type: message.type,
+                            from_bot: null,
                         })
                     })
                 }

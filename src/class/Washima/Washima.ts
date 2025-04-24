@@ -468,7 +468,7 @@ export class Washima {
                                 platform_id: this.id,
                                 message: message.body,
                                 chat_id: chat.id._serialized,
-                                response: (text, media) => this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm),
+                                response: (text, media) => this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm, undefined, true),
                                 other_bots: bots.filter((item) => item.id !== bot.id),
                             })
                         })
@@ -591,12 +591,17 @@ export class Washima {
         return message
     }
 
-    async sendMessage(chat_id: string, message?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage) {
+    async sendMessage(chat_id: string, message?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage, from_bot?: boolean) {
         const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
         if (!message && !mediaMessage) return
 
         const chat = await this.client.getChatById(chat_id)
-        await chat.sendMessage((message || mediaMessage)!, { media: mediaMessage, sendAudioAsVoice: true, quotedMessageId: replyMessage?.sid })
+        await chat.sendMessage((message || mediaMessage)!, {
+            media: mediaMessage,
+            sendAudioAsVoice: true,
+            quotedMessageId: replyMessage?.sid,
+            extra: { from_bot },
+        })
     }
 
     async getContact(contact_id: string) {
