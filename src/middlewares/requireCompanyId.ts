@@ -12,7 +12,11 @@ export const requireCompanyId = async (request: CompanyRequest, response: Respon
         return response.status(400).send("company_id param is required")
     }
 
-    request.company = await Company.getById(company_id as string)
+    try {
+        request.company = await Company.getById(company_id as string)
+    } catch (error) {
+        return response.status(400).send(error)
+    }
 
     next()
 }
