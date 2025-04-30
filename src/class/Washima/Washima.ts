@@ -867,19 +867,19 @@ export class Washima {
         }
 
         console.log("finished")
-        const directoryPath = "static/synclogs"
-        if (!existsSync(directoryPath)) {
-            mkdirSync(directoryPath, { recursive: true })
-        }
-        const filePath = path.join(directoryPath, `${this.name}.json`)
+        // const directoryPath = "static/synclogs"
+        // if (!existsSync(directoryPath)) {
+        //     mkdirSync(directoryPath, { recursive: true })
+        // }
+        // const filePath = path.join(directoryPath, `${this.name}.json`)
 
-        const formattedLogs = {
-            chatError: chatsLog.filter((log) => !log.data.chat),
-            messageError: chatsLog.filter((log) => !log.data.messages),
-            all: chatsLog,
-        }
+        // const formattedLogs = {
+        //     chatError: chatsLog.filter((log) => !log.data.chat),
+        //     messageError: chatsLog.filter((log) => !log.data.messages),
+        //     all: chatsLog,
+        // }
 
-        writeFileSync(filePath, JSON.stringify(formattedLogs))
+        // writeFileSync(filePath, JSON.stringify(formattedLogs))
         this.syncing = false
         this.status = "ready"
         io.emit("washima:update", this)
