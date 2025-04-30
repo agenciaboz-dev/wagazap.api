@@ -39,8 +39,8 @@ services:
 volumes:
   static_volume:
     name: "wagazap_static_files"
-  mysql-data:
-    name: "wagazap_mysql_data"
+  # mysql-data:
+  #   name: "wagazap_mysql_data"
 
 networks:
   default:
