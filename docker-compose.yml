@@ -6,7 +6,7 @@ services:
     container_name: wagazap.api
     environment:
       - PORT=8105
-      - DATABASE_URL=mysql://boz:ewhblt69@34.121.6.26:3306/wagazap
+      - DATABASE_URL=mysql://boz:ewhblt69@34.121.6.26:3306/wagazap?pool_timeout=0
       - URL=https://apichat.boz.app.br
     ports:
       - "8105:8105"
