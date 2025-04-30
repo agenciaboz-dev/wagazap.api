@@ -50,6 +50,17 @@ router.get("/", async (request: Request, response: Response) => {
     }
 })
 
+router.get("/init-status", async (request: Request, response: Response) => {
+    try {
+        const initializing = Washima.initializing
+        const waitingList = Washima.waitingList
+        return response.json({ initializing, waitingList })
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
 router.get("/profile-pic", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
     const chat_id = request.query.chat_id as string | undefined
