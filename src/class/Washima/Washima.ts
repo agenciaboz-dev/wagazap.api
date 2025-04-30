@@ -134,7 +134,7 @@ export class Washima {
     syncing = false
     status: WashimaStatus = "loading"
 
-    static initializeBatch = 3
+    static initializeBatch = 5
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
     static initializing = new Map<string, Washima>()
