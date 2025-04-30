@@ -134,8 +134,19 @@ export class Washima {
     syncing = false
     status: WashimaStatus = "loading"
 
+    static initializeBatch = 3
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
+    static initializing = new Map<string, Washima>()
+    static listInterval = setInterval(() => {
+        if (Washima.initializing.size < Washima.initializeBatch) {
+            const next_washima = Washima.waitingList.pop()
+            if (next_washima) {
+                Washima.initializing.set(next_washima.id, next_washima)
+                next_washima.initialize()
+            }
+        }
+    }, 1000 * 1)
 
     static find(id: string) {
         const washima = Washima.washimas.find((item) => item.id === id)
@@ -160,13 +171,7 @@ export class Washima {
         const washimas = await Washima.list()
         console.log(`${washimas.length} whatsapp numbers`)
 
-        const io = getIoInstance()
-        io.emit("washima:list", washimas)
-
-        const washima = washimas.pop()
-        if (washima) {
-            await washima.initialize(washimas)
-        }
+        Washima.waitingList = washimas
     }
 
     static push(washima: Washima) {
@@ -335,7 +340,7 @@ export class Washima {
         this.contact = ""
     }
 
-    async initialize(queue?: Washima[]) {
+    async initialize() {
         console.log(`initializing ${this.name} - ${this.number}`)
         this.status = "loading"
 
@@ -351,10 +356,7 @@ export class Washima {
 
             this.client.on("qr", (qr) => {
                 if (!this.qrcode) {
-                    const next_washima = queue?.pop()
-                    if (next_washima) {
-                        next_washima.initialize(queue)
-                    }
+                    Washima.initializing.delete(this.id)
                 }
 
                 this.qrcode = qr
@@ -400,10 +402,12 @@ export class Washima {
 
                 io.emit("washima:update", this)
 
-                await this.fetchAndSaveAllMessages()
-                const next_washima = queue?.pop()
-                if (next_washima) {
-                    next_washima.initialize(queue)
+                try {
+                    await this.fetchAndSaveAllMessages()
+                } catch (error) {
+                    console.log(error)
+                } finally {
+                    Washima.initializing.delete(this.id)
                 }
             })
 

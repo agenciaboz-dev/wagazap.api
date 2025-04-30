@@ -34,18 +34,18 @@ router.get("/", async (request: Request, response: Response) => {
                     },
                 },
             })
-            const washimas = not_instanced.map((washima) => new Washima(washima))
             const instanced = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === company_id))
+            const washimas = not_instanced.map((washima) => {
+                const runningClient = Washima.washimas.find((w) => w.id === washima.id)
+                return runningClient ? runningClient : new Washima(washima)
+            })
 
-            for (let washima of washimas) {
-                washima.status = "loading"
-
-                const runningClient = instanced.find((w) => w.id === washima.id)
-                if (runningClient) {
-                    washima = runningClient
+            washimas.forEach((washima) => {
+                if (!instanced.some((item) => item.id === washima.id)) {
+                    washima.status = "loading"
                 }
-            }
-            response.json(washimas)
+            })
+            return response.json(washimas)
         }
     }
 })
@@ -288,8 +288,5 @@ router.post("/restart", async (request: UserRequest, response: Response) => {
         response.status(500).send(error)
     }
 })
-
-
-
 
 export default router
