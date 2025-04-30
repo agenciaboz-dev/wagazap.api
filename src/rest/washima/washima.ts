@@ -25,7 +25,26 @@ router.get("/", async (request: Request, response: Response) => {
         }
     } else {
         if (company_id) {
-            const washimas = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === company_id))
+            const not_instanced = await prisma.washima.findMany({
+                where: {
+                    companies: {
+                        some: {
+                            id: company_id,
+                        },
+                    },
+                },
+            })
+            const washimas = not_instanced.map((washima) => new Washima(washima))
+            const instanced = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === company_id))
+
+            for (let washima of washimas) {
+                washima.status = "loading"
+
+                const runningClient = instanced.find((w) => w.id === washima.id)
+                if (runningClient) {
+                    washima = runningClient
+                }
+            }
             response.json(washimas)
         }
     }

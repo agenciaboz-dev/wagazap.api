@@ -286,7 +286,47 @@ export class Washima {
         this.client = new Client({
             authStrategy: new LocalAuth({ dataPath: `static/washima/auth/whatsapp.auth.${this.id}` }),
             puppeteer: {
-                args: ["--no-sandbox", "--disable-setuid-sandbox"],
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-gpu",
+                    "--disable-dev-shm-usage",
+                    "--disable-accelerated-2d-canvas",
+                    "--disable-web-security",
+                    "--disable-features=IsolateOrigins,site-per-process",
+                    "--disable-features=VizDisplayCompositor",
+                    // "--single-process",
+                    "--no-zygote",
+                    "--renderer-process-limit=1",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-background-networking",
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-breakpad",
+                    "--disable-client-side-phishing-detection",
+                    "--disable-component-update",
+                    "--disable-default-apps",
+                    "--disable-domain-reliability",
+                    "--disable-extensions",
+                    "--disable-hang-monitor",
+                    "--disable-ipc-flooding-protection",
+                    "--disable-notifications",
+                    "--disable-offer-store-unmasked-wallet-cards",
+                    "--disable-popup-blocking",
+                    "--disable-prompt-on-repost",
+                    "--disable-renderer-backgrounding",
+                    "--disable-sync",
+                    "--force-color-profile=srgb",
+                    "--metrics-recording-only",
+                    "--mute-audio",
+                    "--no-crash-upload",
+                    "--no-pings",
+                    "--password-store=basic",
+                    "--use-gl=swiftshader",
+                    "--use-mock-keychain",
+                    "--disable-software-rasterizer",
+                ],
                 executablePath: "/usr/bin/google-chrome-stable",
             },
         })
@@ -298,10 +338,6 @@ export class Washima {
     async initialize(queue?: Washima[]) {
         console.log(`initializing ${this.name} - ${this.number}`)
         this.status = "loading"
-        const next_washima = queue?.pop()
-        if (next_washima) {
-            next_washima.initialize(queue)
-        }
 
         try {
             const companies = await Company.getCompaniesFromWashimaId(this.id)
@@ -314,12 +350,12 @@ export class Washima {
             //* CLIENT EVENTS
 
             this.client.on("qr", (qr) => {
-                // if (!this.qrcode) {
-                //     const next_washima = queue?.pop()
-                //     if (next_washima) {
-                //         next_washima.initialize(queue)
-                //     }
-                // }
+                if (!this.qrcode) {
+                    const next_washima = queue?.pop()
+                    if (next_washima) {
+                        next_washima.initialize(queue)
+                    }
+                }
 
                 this.qrcode = qr
                 this.status = "qrcode"
@@ -364,7 +400,11 @@ export class Washima {
 
                 io.emit("washima:update", this)
 
-                this.fetchAndSaveAllMessages()
+                await this.fetchAndSaveAllMessages()
+                const next_washima = queue?.pop()
+                if (next_washima) {
+                    next_washima.initialize(queue)
+                }
             })
 
             this.client.on("disconnected", async () => {
