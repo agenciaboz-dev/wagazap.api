@@ -52,7 +52,7 @@ router.get("/", async (request: Request, response: Response) => {
 
 router.get("/init-status", async (request: Request, response: Response) => {
     try {
-        const initializing = Washima.initializing
+        const initializing = Array.from(Washima.initializing.values())
         const waitingList = Washima.waitingList
         return response.json({ initializing, waitingList })
     } catch (error) {
