@@ -12,6 +12,7 @@ import { WashimaMessage } from "../Washima/WashimaMessage"
 import { Socket } from "socket.io"
 import { getIoInstance } from "../../io/socket"
 import { NagaChat, NagaMessage, Nagazap } from "../Nagazap"
+import pTimeout from "p-timeout"
 
 export type BoardPrisma = Prisma.BoardGetPayload<{}>
 export interface BoardForm {
@@ -351,10 +352,16 @@ export class Board {
         if (washima) {
             console.log(`syncing ${washima.name}`)
             const messages = await WashimaMessage.getWashimaMessages(data.washima_id)
+            console.log(messages.length)
             const chats: Chat[] = []
 
             for (const message of messages) {
+                console.log(`starting message ${messages.indexOf(message) + 1} de ${messages.length}`)
                 const chatIndex = chats.findIndex((chat) => chat.washima_chat_id === message.chat_id)
+
+                if (messages.indexOf(message) + 1 === 2053) {
+                    console.log({ message })
+                }
 
                 if (message.from === "0@c.us") {
                     continue
@@ -370,9 +377,22 @@ export class Board {
                 }
 
                 const lastMessage = (await WashimaMessage.getChatMessages(washima.id, washima_chat.id._serialized, washima_chat.isGroup, 0, 1))[0]
+                if (messages.indexOf(message) + 1 === 2053) {
+                    console.log({ lastMessage })
+                }
 
                 const contact = await washima_chat.getContact()
-                const profilePic = await washima.getCachedProfilePicture(washima_chat.id._serialized, "chat")
+                if (messages.indexOf(message) + 1 === 2053) {
+                    console.log({ contact })
+                }
+
+                const profilePic = await pTimeout(washima.getCachedProfilePicture(washima_chat.id._serialized, "chat"), {
+                    milliseconds: 10 * 1000,
+                }).catch(() => {})
+                if (messages.indexOf(message) + 1 === 2053) {
+                    console.log({ profilePic })
+                }
+
                 const chat = new Chat({
                     id: uid(),
                     last_message: lastMessage,
@@ -384,11 +404,18 @@ export class Board {
                     is_group: washima_chat.isGroup,
                     profile_pic: profilePic?.url,
                 })
+                if (messages.indexOf(message) + 1 === 2053) {
+                    console.log({ chat })
+                }
+
                 chats.push(chat)
+                console.log(`done ${messages.indexOf(message) + 1} de ${messages.length}`)
             }
 
+            console.log("building target room")
             const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))
             this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]
+            console.log("finished")
         } else {
             console.log(`${data.washima_id} não encontrado`)
         }
