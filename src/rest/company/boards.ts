@@ -47,12 +47,14 @@ router.use(requireBoardId)
 router.patch("/", async (request: BoardAuthRequest, response: Response) => {
     const data = request.body as Partial<Board> & { access?: BoardAccess }
 
+    console.log(data)
+
     try {
-        if (data.washima_settings) {
+        if (data.washima_settings && data.washima_settings.length > 0) {
             await request.board!.handleWashimaSettingsChange(data.washima_settings)
         }
 
-        if (data.nagazap_settings) {
+        if (data.nagazap_settings && data.nagazap_settings.length > 0) {
             await request.board!.handleNagazapSettingsChange(data.nagazap_settings)
         }
 

@@ -277,8 +277,8 @@ export class Board {
         const roomWithChat = this.rooms.find((room) =>
             room.chats.find((item) => {
                 if (
-                    (item.washima_id === chat.washima_id && item.washima_chat_id === chatDto.washima_chat_id) ||
-                    (item.nagazap_id === chat.nagazap_id && item.phone === chatDto.phone)
+                    (item.washima_id && item.washima_id === chat.washima_id && item.washima_chat_id === chatDto.washima_chat_id) ||
+                    (item.nagazap_id && item.nagazap_id === chat.nagazap_id && item.phone === chatDto.phone)
                 ) {
                     chat = item
                     chat.unread_count = chatDto.unread_count
@@ -305,6 +305,7 @@ export class Board {
 
     async handleWashimaSettingsChange(data: BoardWashimaSettings[]) {
         return new Promise<boolean>(async (resolve) => {
+            console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa tocou aqui")
             const newSettings = data.filter(
                 (washima_setting) => !this.washima_settings.find((item) => item.washima_id === washima_setting.washima_id)
             )
@@ -321,7 +322,9 @@ export class Board {
             console.log({ newSettings, deletedSettings, data })
 
             deletedSettings.forEach(async (setting) => this.unsyncWashima(setting))
-            await Promise.all(newSettings.map(async (setting) => await this.syncWashima(setting)))
+            for (const setting of newSettings) {
+                await this.syncWashima(setting)
+            }
 
             this.washima_settings = data
             await this.saveRooms()
@@ -386,6 +389,8 @@ export class Board {
 
             const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))
             this.rooms[target_room_index].chats = [...chats, ...this.rooms[target_room_index].chats]
+        } else {
+            console.log(`${data.washima_id} não encontrado`)
         }
     }
 
