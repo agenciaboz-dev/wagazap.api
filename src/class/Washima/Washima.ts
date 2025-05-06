@@ -563,6 +563,7 @@ export class Washima {
             this.client.on("group_admin_changed", async (notification) => WashimaGroupUpdate.handleUpdate({ notification, washima_id: this.id }))
         } catch (error) {
             console.log(`failed to initialize ${this.name} - ${this.number} whatsapp`)
+            this.status = "error"
             console.log(error)
         }
     }
