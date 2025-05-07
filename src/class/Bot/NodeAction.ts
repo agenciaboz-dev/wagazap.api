@@ -88,13 +88,6 @@ export class NodeAction {
             case "bot:end": {
                 const settings = this.settings as { expiry: number }
                 bot.pauseChat(data.chat_id, settings.expiry)
-                console.log("nodeaction")
-                console.log("nodeaction")
-                console.log(settings)
-                console.log(this)
-                console.log(data)
-                console.log("nodeaction")
-                console.log("nodeaction")
                 break
             }
         }
