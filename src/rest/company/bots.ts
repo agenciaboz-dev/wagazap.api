@@ -6,7 +6,7 @@ import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
 import { Log } from "../../class/Log"
 
 const router = express.Router()
-router.use(requireCompanyId)
+router.use(requireCompanyId) // requiring company ID
 
 router.get("/", async (request: CompanyRequest, response: Response) => {
     const { bot_id } = request.query
@@ -25,7 +25,7 @@ router.get("/", async (request: CompanyRequest, response: Response) => {
     }
 })
 
-router.use(requireUserId)
+router.use(requireUserId) // requiring user ID
 
 router.post("/", async (request: CompanyRequest & UserRequest, response: Response) => {
     const data = request.body as BotForm
@@ -41,7 +41,49 @@ router.post("/", async (request: CompanyRequest & UserRequest, response: Respons
     }
 })
 
-router.use(requireBotId)
+router.get("/active-on", async (request: CompanyRequest, response: Response) => {
+    const chat_id = request.query.chat_id as string | undefined
+
+    if (chat_id) {
+        try {
+            const bots = await request.company!.getBots()
+            const activeBot = bots.find((bot) => bot.active_on.find((active_chat) => active_chat.chat_id === chat_id))
+            const paused = bots.find((bot) => bot.paused_chats.get(chat_id))
+            setTimeout(() => console.log({ activeBot, paused }), 2000)
+            return response.json({ activeBot, paused })
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("chat_id param is required")
+    }
+})
+
+router.use(requireBotId) // requiring bot ID
+
+router.get("/toggle", async (request: BotRequest, response: Response) => {
+    const chat_id = request.query.chat_id as string | undefined
+    console.log("aaaaaaaaaaaaaaaaa")
+
+    if (chat_id) {
+        try {
+            const bot = request.bot!
+            if (bot.isPaused(chat_id)) {
+                bot.unpauseChat(chat_id)
+            } else {
+                bot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
+            }
+
+            return response.json({ activeBot: null, paused: bot.isPaused(chat_id) ? bot : null })
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("chat_id param is required")
+    }
+})
 
 router.get("/channels", async (request: BotRequest & UserRequest, response: Response) => {
     try {

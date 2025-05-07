@@ -2,10 +2,11 @@ import { uid } from "uid"
 import { Board } from "../Board/Board"
 import { Chat, ChatDto } from "../Board/Chat"
 import { WithoutFunctions } from "../helpers"
-import { Bot, BotMessageForm } from "./Bot"
+import { Bot, BotMessageForm, PausedInteraction } from "./Bot"
 import { Nagazap } from "../Nagazap"
 import { Washima } from "../Washima/Washima"
 import { WashimaMessage } from "../Washima/WashimaMessage"
+import { getIoInstance } from "../../io/socket"
 
 export type ValidAction = "board:room:chat:new" | "bot:end"
 
@@ -81,13 +82,20 @@ export class NodeAction {
                 }
                 await board.newChat(chat, settings.room_id)
                 board.emit()
+                break
             }
 
             case "bot:end": {
                 const settings = this.settings as { expiry: number }
-                bot.paused_chats.set(data.chat_id, { chat_id: data.chat_id, expiry: new Date().getTime() + 1000 * 60 * settings.expiry })
-                bot.save()
-                bot.closeChat(data.chat_id)
+                bot.pauseChat(data.chat_id, settings.expiry)
+                console.log("nodeaction")
+                console.log("nodeaction")
+                console.log(settings)
+                console.log(this)
+                console.log(data)
+                console.log("nodeaction")
+                console.log("nodeaction")
+                break
             }
         }
     }

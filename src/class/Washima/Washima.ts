@@ -645,8 +645,16 @@ export class Washima {
             media: mediaMessage,
             sendAudioAsVoice: true,
             quotedMessageId: replyMessage?.sid,
-            extra: { from_bot },
         })
+
+        if (!from_bot) {
+            const company = await Company.getById(this.companies[0].id)
+            const bots = await company.getBots()
+            const activeBot = bots.find((bot) => bot.active_on.find((active_chat) => active_chat.chat_id === chat_id))
+            if (activeBot) {
+                activeBot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
+            }
+        }
     }
 
     async getContact(contact_id: string) {

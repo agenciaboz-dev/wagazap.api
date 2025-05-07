@@ -11,6 +11,7 @@ import { NagazapMediaForm } from "../Nagazap"
 import { file2base64 } from "../../tools/file2base64"
 import { sleep } from "../../tools/sleep"
 import { NodeAction } from "./NodeAction"
+import { getIoInstance } from "../../io/socket"
 
 export const bot_include = Prisma.validator<Prisma.BotInclude>()({ washimas: { select: { id: true } }, nagazaps: { select: { id: true } } })
 type BotPrisma = Prisma.BotGetPayload<{ include: typeof bot_include }>
@@ -266,13 +267,28 @@ export class Bot {
         await prisma.bot.delete({ where: { id: this.id } })
     }
 
+    pauseChat(chat_id: string, minutes: number) {
+        const paused_interaction: PausedInteraction = { chat_id, expiry: new Date().getTime() + 1000 * 60 * minutes }
+        this.paused_chats.set(chat_id, paused_interaction)
+        this.save()
+        this.closeChat(chat_id, true)
+        const io = getIoInstance()
+        io.emit(`bot:paused:${chat_id}`, this)
+    }
+
+    unpauseChat(chat_id: string) {
+        this.paused_chats.delete(chat_id)
+        const io = getIoInstance()
+        io.emit(`bot:paused:${chat_id}`, null)
+        this.save()
+    }
+
     isPaused(chat_id: string) {
         const paused_interaction = this.paused_chats.get(chat_id)
 
         if (paused_interaction) {
             if (paused_interaction.expiry < new Date().getTime()) {
-                this.paused_chats.delete(chat_id)
-                this.save()
+                this.unpauseChat(chat_id)
                 return false
             }
 
@@ -299,6 +315,8 @@ export class Bot {
                 return
             }
 
+            const io = getIoInstance()
+            io.emit(`bot:activity:${current_chat.chat_id}`, this)
             const bot_responses = this.advanceChat(current_chat, data.message)
             if (bot_responses) {
                 for (const message_node of bot_responses) {
@@ -463,10 +481,15 @@ export class Bot {
         })
     }
 
-    closeChat(chat_id: string) {
+    closeChat(chat_id: string, skip_emition = false) {
         this.active_on = this.active_on.filter((item) => item.chat_id !== chat_id)
         this.save()
         Bot.pending_response.delete(chat_id)
+
+        if (skip_emition) return
+
+        const io = getIoInstance()
+        io.emit(`bot:activity:${chat_id}`, null)
     }
 
     normalize(text: string) {
