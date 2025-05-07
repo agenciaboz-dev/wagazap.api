@@ -44,6 +44,8 @@ export interface WashimaMessageId {
     _serialized: string
 }
 
+
+
 interface WashimaMediaFormHelper extends FileUpload {
     mimetype: string
     base64: string

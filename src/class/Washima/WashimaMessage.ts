@@ -4,7 +4,7 @@ import WAWebJS from "whatsapp-web.js"
 import { WashimaMessageId } from "./Washima"
 import Fuse from "fuse.js"
 
-export type MessageType = "ptt" | "video" | "image" | "text" | "revoked" | "sticker" | "audio" | "chat" | "document" | "sticker"
+export type MessageType = "ptt" | "video" | "image" | "text" | "revoked" | "sticker" | "audio" | "chat" | "document" | "sticker" | "call_log"
 
 export enum MessageAck {
     error = -1,
@@ -17,13 +17,18 @@ export enum MessageAck {
 
 export type WashimaMessagePrisma = Prisma.WashimaMessageGetPayload<{}>
 
-
 export interface WashimaMessageForm {
     message: WAWebJS.Message
     washima_id: string
     chat_id: string
     isGroup?: boolean
     createOnly?: boolean
+}
+
+export interface WashimaCall {
+    isVideoCall: boolean
+    callDuration: number | null
+    callParticipants: any
 }
 
 export class WashimaMessage {
@@ -46,6 +51,7 @@ export class WashimaMessage {
     replied_to?: WashimaMessage | null
     forwarded: boolean
     phone_only: boolean | null
+    call: WashimaCall | null
 
     static async getChatMessages(washima_id: string, chat_id: string, is_group: boolean, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -114,6 +120,15 @@ export class WashimaMessage {
             washimaQuotedMessage = await WashimaMessage.getBySid(quotedMessage.id._serialized)
         }
 
+        let washimaCall: WashimaCall | undefined = undefined
+        // if (message.type === "call_log") {
+        //     washimaCall = {
+        //         callDuration: message._data.callDuration,
+        //         callParticipants: message._data.callParticipants,
+        //         isVideoCall: message._data.isVideoCall,
+        //     }
+        // }
+
         const saved = await prisma.washimaMessage.create({
             data: {
                 washima_id: data.washima_id,
@@ -132,9 +147,18 @@ export class WashimaMessage {
                 replied_to: JSON.stringify(washimaQuotedMessage) || undefined,
                 forwarded: message.isForwarded,
                 phone_only: (message as any)._data?.subtype === "phone_only_feature",
+                call:
+                    message.type === "call_log"
+                        ? JSON.stringify({
+                              callDuration: null,
+                              callParticipants: null,
+                              isVideoCall: false,
+                          })
+                        : undefined,
             },
         })
 
+        console.log(new WashimaMessage(saved))
         return new WashimaMessage(saved)
     }
 
@@ -201,5 +225,6 @@ export class WashimaMessage {
         this.replied_to = data.replied_to ? (JSON.parse(data.replied_to as string) as WashimaMessage) : null
         this.forwarded = data.forwarded
         this.phone_only = data.phone_only
+        this.call = data.call ? (JSON.parse(data.call as string) as WashimaCall) : null
     }
 }

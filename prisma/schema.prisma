@@ -102,6 +102,7 @@ model WashimaMessage {
     forwarded   Boolean         @default(false)
     phone_only  Boolean?
     from_bot    Boolean?
+    call        Json?
 
     @@fulltext([body])
 }
