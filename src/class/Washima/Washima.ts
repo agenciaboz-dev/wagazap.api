@@ -667,8 +667,9 @@ export class Washima {
     async getContact(contact_id: string) {
         try {
             const contact = await this.client.getContactById(contact_id)
+            console.log({ contact })
 
-            return contact.name || contact.pushname ? `${contact.pushname} - ${contact.number}` : contact.number
+            return contact.name || (contact.pushname ? `${contact.pushname} - ${contact.number}` : contact.number)
         } catch (error) {
             console.log(error)
             return ""
