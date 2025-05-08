@@ -6,6 +6,7 @@ import { Washima, WashimaMediaForm } from "../class/Washima/Washima"
 import { WashimaMessage } from "../class/Washima/WashimaMessage"
 import { Nagazap, NagazapResponseForm } from "../class/Nagazap"
 import { Board } from "../class/Board/Board"
+import { Contact } from "whatsapp-web.js"
 
 let io: SocketIoServer | null = null
 
@@ -31,6 +32,9 @@ export const handleSocket = (socket: Socket) => {
         console.log({ reason })
     })
 
+    socket.on("washima:channel:join", (channel: string) => socket.join(channel))
+    socket.on("washima:channel:leave", (channel: string) => socket.leave(channel))
+
     socket.on("washima:message", (washima_id: string, chat_id: string, message?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage) =>
         Washima.sendMessage(socket, washima_id, chat_id, message, media, replyMessage)
     )
@@ -41,6 +45,14 @@ export const handleSocket = (socket: Socket) => {
     socket.on("washima:forward", (washima_id: string, chat_id: string, destinatary_ids: string[], message_ids: string[]) =>
         Washima.forwardMessage(socket, washima_id, chat_id, destinatary_ids, message_ids)
     )
+
+    socket.on("washima:author", async (washima_id: string, contact_id: string, response: (author?: string) => void) => {
+        const washima = Washima.find(washima_id)
+        console.log(washima_id, contact_id)
+        const contact = await washima?.getContact(contact_id)
+        console.log(contact)
+        response(contact)
+    })
 
     socket.on("nagazap:response", (nagazap_id: string, data: NagazapResponseForm) => Nagazap.sendResponse(nagazap_id, data))
 

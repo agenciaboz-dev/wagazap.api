@@ -103,6 +103,7 @@ model WashimaMessage {
     phone_only  Boolean?
     from_bot    Boolean?
     call        Json?
+    contact_id  String?
 
     @@fulltext([body])
 }

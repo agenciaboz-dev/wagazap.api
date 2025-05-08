@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client"
 import { prisma } from "../../prisma"
-import WAWebJS from "whatsapp-web.js"
+import WAWebJS, { Contact } from "whatsapp-web.js"
 import { WashimaMessageId } from "./Washima"
 import Fuse from "fuse.js"
 
@@ -52,6 +52,7 @@ export class WashimaMessage {
     forwarded: boolean
     phone_only: boolean | null
     call: WashimaCall | null
+    contact_id: string | null
 
     static async getChatMessages(washima_id: string, chat_id: string, is_group: boolean, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -84,6 +85,12 @@ export class WashimaMessage {
         return messages_result
     }
 
+    static async findBySid(sid: string) {
+        const result = await prisma.washimaMessage.findUnique({ where: { sid } })
+
+        return result ? new WashimaMessage(result) : null
+    }
+
     static async getBySid(sid: string) {
         const result = await prisma.washimaMessage.findUnique({ where: { sid } })
         if (!result) throw "messagem não encontrada"
@@ -98,8 +105,9 @@ export class WashimaMessage {
         return null
     }
 
-    static async new(data: WashimaMessageForm, author?: string) {
+    static async new(data: WashimaMessageForm, author?: string, _contact?: Contact) {
         const message = data.message
+        let contact = _contact || await message.getContact()
 
         let existing_message: WashimaMessage | undefined
         try {
@@ -110,7 +118,6 @@ export class WashimaMessage {
         }
 
         if (data.isGroup && !message.fromMe) {
-            const contact = await message.getContact()
             message.author = contact.name || `${contact.pushname} - ${contact.number}`
         }
 
@@ -155,6 +162,7 @@ export class WashimaMessage {
                               isVideoCall: false,
                           })
                         : undefined,
+                contact_id: contact.id._serialized,
             },
         })
 
@@ -226,5 +234,6 @@ export class WashimaMessage {
         this.forwarded = data.forwarded
         this.phone_only = data.phone_only
         this.call = data.call ? (JSON.parse(data.call as string) as WashimaCall) : null
+        this.contact_id = data.contact_id
     }
 }

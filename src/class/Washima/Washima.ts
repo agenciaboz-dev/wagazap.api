@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client"
-import WAWebJS, { Client, LocalAuth, Message, MessageMedia } from "whatsapp-web.js"
+import WAWebJS, { Client, Contact, LocalAuth, Message, MessageMedia } from "whatsapp-web.js"
 import { prisma } from "../../prisma"
 import { FileUpload, WithoutFunctions } from "../helpers"
 import { uid } from "uid"
@@ -43,8 +43,6 @@ export interface WashimaMessageId {
     remote: string
     _serialized: string
 }
-
-
 
 interface WashimaMediaFormHelper extends FileUpload {
     mimetype: string
@@ -467,6 +465,7 @@ export class Washima {
             this.client.on("message_create", async (message) => {
                 const handler = async (message: WAWebJS.Message) => {
                     if (message.id.remote === "status@broadcast") return
+                    if (await WashimaMessage.findBySid(message.id._serialized)) return
 
                     // console.log(JSON.stringify(message))
 
@@ -481,6 +480,7 @@ export class Washima {
 
                     this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
+                    const contact = await message.getContact()
                     const washima_message = await WashimaMessage.new(
                         {
                             chat_id: chat.id._serialized,
@@ -488,7 +488,8 @@ export class Washima {
                             message,
                             isGroup: chat.isGroup,
                         },
-                        this.info.pushname
+                        this.info.pushname,
+                        contact
                     )
 
                     console.log("mensagem nova aqui " + this.name)
@@ -502,8 +503,12 @@ export class Washima {
                             })
                         )
                     })
-                    io.emit("washima:message", { chat, message: washima_message }, this.id)
-                    io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
+
+                    const payload = { chat, message: washima_message }
+                    io.to(chat.id._serialized).emit("washima:message", payload)
+                    io.to(this.id).emit("washima:chat", this.chats[index])
+                    // io.emit("washima:message", { chat, message: washima_message }, this.id)
+                    // io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
                     io.emit("washima:update", this)
 
                     if (!message.fromMe && !chat.isGroup) {
@@ -827,6 +832,8 @@ export class Washima {
                     (message) => message.from !== "0@c.us" && !existingChatMessages.find((item) => item.sid === message.id._serialized)
                 )
 
+                const contacts = new Map<string, Contact>()
+
                 for (const [index, message] of messages.entries()) {
                     console.log(`fetching message ${index + 1}/${messages.length} from chat ${chat_index + 1}/${chats.length}`)
                     io.emit(`washima:${this.id}:sync:progress`, {
@@ -837,13 +844,22 @@ export class Washima {
                     })
 
                     try {
-                        const washima_message = await WashimaMessage.new({
-                            washima_id: this.id,
-                            chat_id: chat.id._serialized,
-                            message,
-                            isGroup: chat.isGroup,
-                            createOnly: true,
-                        })
+                        if (message.author) console.log({ author: message.author })
+                        const contact_id = message.author || message.from
+                        const contact = contacts.get(contact_id) || (await message.getContact())
+                        if (!contacts.has(contact_id)) contacts.set(contact_id, contact)
+
+                        const washima_message = await WashimaMessage.new(
+                            {
+                                washima_id: this.id,
+                                chat_id: chat.id._serialized,
+                                message,
+                                isGroup: chat.isGroup,
+                                createOnly: true,
+                            },
+                            this.info.pushname,
+                            contact
+                        )
                         chatsLog[chat_index].data.messages = true
                     } catch (error) {
                         if (error instanceof PrismaClientKnownRequestError && error.meta?.target === "PRIMARY") {
