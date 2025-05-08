@@ -466,11 +466,12 @@ export class Washima {
                 const handler = async (message: WAWebJS.Message) => {
                     if (message.id.remote === "status@broadcast") return
                     if (await WashimaMessage.findBySid(message.id._serialized)) return
+                    const contact = await message.getContact()
+                    const chat = await message.getChat()
 
                     // console.log(JSON.stringify(message))
 
                     const io = getIoInstance()
-                    const chat = await message.getChat()
 
                     if (message.hasMedia) {
                         await this.getCachedMedia(message)
@@ -480,7 +481,23 @@ export class Washima {
 
                     this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
-                    const contact = await message.getContact()
+                    this.companies.forEach(async (company) => {
+                        const users = await company.getUsers()
+                        users.forEach((user) =>
+                            user.notify("washima-message", {
+                                title: `${this.name}: ${chat.name}. ${chat.isGroup ? message.author : ""}`,
+                                body: message.body || "MEDIA",
+                            })
+                        )
+                    })
+                    io.emit("washima:update", this)
+                    if (
+                        chat.isGroup &&
+                        Washima.washimas.some((washima) => washima.id !== this.id && washima.info.wid._serialized === contact.id._serialized)
+                    ) {
+                        return // stopping message from being saved if it was sent by another washima
+                    }
+
                     const washima_message = await WashimaMessage.new(
                         {
                             chat_id: chat.id._serialized,
@@ -492,24 +509,11 @@ export class Washima {
                         contact
                     )
 
-                    console.log("mensagem nova aqui " + this.name)
-
-                    this.companies.forEach(async (company) => {
-                        const users = await company.getUsers()
-                        users.forEach((user) =>
-                            user.notify("washima-message", {
-                                title: `${this.name}: ${chat.name}. ${chat.isGroup ? message.author : ""}`,
-                                body: message.body || "MEDIA",
-                            })
-                        )
-                    })
-
                     const payload = { chat, message: washima_message }
                     io.to(chat.id._serialized).emit("washima:message", payload)
                     io.to(this.id).emit("washima:chat", this.chats[index])
                     // io.emit("washima:message", { chat, message: washima_message }, this.id)
                     // io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
-                    io.emit("washima:update", this)
 
                     if (!message.fromMe && !chat.isGroup) {
                         const bots = await Bot.getByWashima(this.id)
@@ -830,7 +834,9 @@ export class Washima {
                 console.log(existingChatMessages.length)
 
                 const messages = chatMessages.filter(
-                    (message) => message.from !== "0@c.us" && !existingChatMessages.find((item) => item.sid === message.id._serialized)
+                    (message) =>
+                        message.from !== "0@c.us" &&
+                        !existingChatMessages.find((item) => (chat.isGroup ? item.id.id === message.id.id : item.sid === message.id._serialized))
                 )
 
                 const contacts = new Map<string, Contact>()
