@@ -22,7 +22,7 @@ services:
     #       memory: 1512M
 
   mysql:
-    image: mysql:latest
+    image: mysql:8.0.42
     container_name: mysql
     environment:
       - MYSQL_DATABASE=wagazap
