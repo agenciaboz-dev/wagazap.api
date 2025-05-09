@@ -21,6 +21,7 @@ import { sleep } from "../../tools/sleep"
 import { Board } from "../Board/Board"
 import { existsSync, mkdirSync, writeFileSync } from "fs"
 import path from "path"
+import { normalizeContactId } from "../../tools/normalize"
 // import numeral from 'numeral'
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
@@ -271,7 +272,7 @@ export class Washima {
         const washima = Washima.find(washima_id)
         if (washima) {
             try {
-                const name = await washima.getContact(contact_id)
+                const name = await washima.getContact(normalizeContactId(contact_id))
                 socket.emit("washima:message:contact", message_id, name)
             } catch (error) {
                 console.log("error getting contact")
@@ -493,7 +494,9 @@ export class Washima {
                     io.emit("washima:update", this)
                     if (
                         chat.isGroup &&
-                        Washima.washimas.some((washima) => washima.id !== this.id && washima.info.wid._serialized === contact.id._serialized)
+                        Washima.washimas.some(
+                            (washima) => washima.id !== this.id && washima.info.wid._serialized === normalizeContactId(contact.id._serialized)
+                        )
                     ) {
                         return // stopping message from being saved if it was sent by another washima
                     }
@@ -670,7 +673,7 @@ export class Washima {
 
     async getContact(contact_id: string) {
         try {
-            const contact = await this.client.getContactById(contact_id)
+            const contact = await this.client.getContactById(normalizeContactId(contact_id))
             console.log({ contact })
 
             return contact.name || (contact.pushname ? `${contact.pushname} - ${contact.number}` : contact.number)

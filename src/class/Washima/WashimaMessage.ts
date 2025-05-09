@@ -3,6 +3,7 @@ import { prisma } from "../../prisma"
 import WAWebJS, { Contact } from "whatsapp-web.js"
 import { WashimaMessageId } from "./Washima"
 import Fuse from "fuse.js"
+import { normalizeContactId } from "../../tools/normalize"
 
 export type MessageType = "ptt" | "video" | "image" | "text" | "revoked" | "sticker" | "audio" | "chat" | "document" | "sticker" | "call_log"
 
@@ -107,7 +108,7 @@ export class WashimaMessage {
 
     static async new(data: WashimaMessageForm, author?: string, _contact?: Contact) {
         const message = data.message
-        let contact = _contact || await message.getContact()
+        let contact = _contact || (await message.getContact())
 
         let existing_message: WashimaMessage | undefined
         try {
@@ -162,7 +163,7 @@ export class WashimaMessage {
                               isVideoCall: false,
                           })
                         : undefined,
-                contact_id: contact.id._serialized,
+                contact_id: normalizeContactId(contact.id._serialized),
             },
         })
 
