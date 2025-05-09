@@ -524,6 +524,7 @@ export class Nagazap {
             data: {
                 ...data,
                 nagazap_id: this.id,
+                from: normalizePhoneNumber(data.from),
                 timestamp: (Number(data.timestamp) * 1000).toString(),
                 template: template ? JSON.stringify(template) : undefined,
             },
