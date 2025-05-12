@@ -8,7 +8,7 @@ import { Washima } from "../Washima/Washima"
 import { WashimaMessage } from "../Washima/WashimaMessage"
 import { getIoInstance } from "../../io/socket"
 
-export type ValidAction = "board:room:chat:new" | "bot:end"
+export type ValidAction = "board:room:chat:new" | "bot:end" | "nagazap:blacklist:add"
 
 export type NodeActionDto = WithoutFunctions<NodeAction>
 
@@ -88,6 +88,18 @@ export class NodeAction {
             case "bot:end": {
                 const settings = this.settings as { expiry: number }
                 bot.pauseChat(data.chat_id, settings.expiry)
+                break
+            }
+
+            case "nagazap:blacklist:add": {
+                if (data.platform !== "nagazap") return
+                const nagazap = await Nagazap.getById(data.platform_id)
+                const chat = await nagazap.getMessages(data.chat_id)
+                if (chat.length === 0) return
+
+                const lastMessage = chat[chat.length - 1]
+
+                await nagazap.addToBlacklist(lastMessage.from, lastMessage.name)
                 break
             }
         }
