@@ -356,16 +356,16 @@ export class Washima {
             //* CLIENT EVENTS
 
             this.client.on("qr", (qr) => {
+                console.log({ qr })
                 if (!this.qrcode) {
                     Washima.initializing.delete(this.id)
+                } else {
+                    this.stop()
+                    return
                 }
 
                 this.qrcode = qr
                 this.status = "qrcode"
-                // console.log("whatsapp is disconnected. QrCode ready: " + this.qrcode)
-                // qrcode.generate(qr, { small: true })
-
-                const io = getIoInstance()
                 this.emit()
             })
 
@@ -612,7 +612,6 @@ export class Washima {
         this.name = updated.name
         this.number = updated.number
 
-        const io = getIoInstance()
         this.emit()
     }
 
