@@ -28,7 +28,7 @@ import { normalizeContactId } from "../../tools/normalize"
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
 export type WashimaMediaPrisma = Prisma.WashimaMediaGetPayload<{}>
 export type WashimaProfilePicPrisma = Prisma.WashimaProfilePicGetPayload<{}>
-export type WashimaStatus = "loading" | "ready" | "qrcode" | "error"
+export type WashimaStatus = "loading" | "ready" | "qrcode" | "error" | "stopped"
 export interface WashimaDiskMetrics {
     messages: number
     media: number
@@ -350,7 +350,7 @@ export class Washima {
             this.companies = companies
             Washima.push(this)
             const io = getIoInstance()
-            io.emit("washima:update", this)
+            this.emit()
             await this.client.initialize()
 
             //* CLIENT EVENTS
@@ -366,7 +366,7 @@ export class Washima {
                 // qrcode.generate(qr, { small: true })
 
                 const io = getIoInstance()
-                io.emit("washima:update", this)
+                this.emit()
             })
 
             this.client.on("authenticated", (session) => {
@@ -380,7 +380,7 @@ export class Washima {
 
                 io.emit("washima:ready", this.id)
                 this.status = "loading"
-                io.emit("washima:update", this)
+                this.emit()
 
                 io.emit(`washima:${this.id}:init`, "Configurando metadados", 1)
                 console.log(`washima:${this.id}:init`, "Configurando metadados", 1)
@@ -401,7 +401,7 @@ export class Washima {
                 this.name = this.info.pushname
                 await this.update({ number: this.number, name: this.name })
 
-                io.emit("washima:update", this)
+                this.emit()
 
                 try {
                     await this.fetchAndSaveAllMessages()
@@ -428,7 +428,7 @@ export class Washima {
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
                 this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
-                io.emit("washima:update", this)
+                this.emit()
             })
 
             this.client.on("message_revoke_everyone", async (message, revoked) => {
@@ -443,7 +443,7 @@ export class Washima {
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
                 this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
-                io.emit("washima:update", this)
+                this.emit()
             })
 
             this.client.on("message_edit", async (message, new_body, previous_body) => {
@@ -460,7 +460,7 @@ export class Washima {
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
                 this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
-                io.emit("washima:update", this)
+                this.emit()
             })
 
             this.client.on("message_create", async (message) => {
@@ -491,7 +491,7 @@ export class Washima {
                             })
                         )
                     })
-                    io.emit("washima:update", this)
+                    this.emit()
                     if (
                         chat.isGroup &&
                         Washima.washimas.some(
@@ -558,7 +558,7 @@ export class Washima {
                         this.chats[chat_index] = chat
                     }
 
-                    io.emit("washima:update", this)
+                    this.emit()
 
                     this.sendBulkGroupNotification(notification)
                 } catch (error) {
@@ -578,6 +578,7 @@ export class Washima {
         } catch (error) {
             console.log(`failed to initialize ${this.name} - ${this.number} whatsapp`)
             this.status = "error"
+            this.emit()
             console.log(error)
         }
     }
@@ -612,7 +613,7 @@ export class Washima {
         this.number = updated.number
 
         const io = getIoInstance()
-        io.emit("washima:update", this)
+        this.emit()
     }
 
     async getContactPicture(target_id: string, target?: "chat" | "message") {
@@ -689,28 +690,39 @@ export class Washima {
         return media
     }
 
-    async restart() {
+    async stop() {
         this.status = "loading"
-        const io = getIoInstance()
-        io.emit("washima:update", this)
+        this.emit()
         try {
-            console.log("merda")
-            this.qrcode = ""
-            console.log("merda 2")
-            this.ready = false
-            console.log("merda 3")
+            this.status = "stopped"
             await this.client.destroy()
-            console.log("merda 4")
+            this.emit()
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    async restart() {
+        try {
+            if (this.status !== "stopped") {
+                await this.stop()
+                console.log("parou")
+            }
+
+            this.qrcode = ""
+            this.ready = false
+            Washima.washimas = Washima.washimas.filter((item) => item.id !== this.id)
+            Washima.waitingList.push(this)
+            this.status = "loading"
+            this.emit()
+            console.log("inicializando de novo")
             await this.client.initialize()
-            console.log("merda 5")
-            console.log("merda 6")
-            console.log("merda 7")
         } catch (error) {
             console.log("error initializing")
             console.log(error)
             this.status = "error"
         } finally {
-            io.emit("washima:update", this)
+            this.emit()
         }
     }
 
@@ -919,7 +931,7 @@ export class Washima {
         // writeFileSync(filePath, JSON.stringify(formattedLogs))
         this.syncing = false
         this.status = "ready"
-        io.emit("washima:update", this)
+        this.emit()
     }
 
     async getTableUsage(table: string, megabyte?: boolean) {

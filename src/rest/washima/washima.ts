@@ -6,6 +6,7 @@ import tools from "./tools"
 import { User } from "../../class/User"
 import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
 import { Log } from "../../class/Log"
+import { requireWashimaId, WashimaRequest } from "../../middlewares/requireWashimaId"
 
 const router = express.Router()
 
@@ -277,6 +278,8 @@ router.delete("/", async (request: UserRequest, response: Response) => {
     }
 })
 
+
+
 router.post("/restart", async (request: UserRequest, response: Response) => {
     const data = request.body as { washima_id: string }
 
@@ -294,6 +297,24 @@ router.post("/restart", async (request: UserRequest, response: Response) => {
         await washima?.restart()
 
         response.json(washima)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.use(requireWashimaId)
+
+router.get("/stop-start", async (request: WashimaRequest & UserRequest, response: Response) => {
+    try {
+        const washima = request.washima as Washima
+        if (washima.status === "stopped" || washima.status === "error") {
+            await washima.restart()
+        } else {
+            await washima.stop()
+        }
+
+        return response.status(201).send()
     } catch (error) {
         console.log(error)
         response.status(500).send(error)
