@@ -139,12 +139,44 @@ export class Washima {
     static washimas: Washima[] = []
     static waitingList: Washima[] = []
     static initializing = new Map<string, Washima>()
+
+    static messagesQueue = new Map<string, { washima: Washima; messages: { message: Message; ack?: boolean }[] }>()
     static listInterval = setInterval(() => {
         if (Washima.initializing.size < Washima.initializeBatch) {
             const next_washima = Washima.waitingList.pop()
             if (next_washima) {
                 Washima.initializing.set(next_washima.id, next_washima)
                 next_washima.initialize()
+            }
+        }
+
+        if (Washima.messagesQueue.size > 0) {
+            for (const [key, value] of Washima.messagesQueue.entries()) {
+                const { washima, messages } = value
+                if (messages.length === 0) return
+                let message = messages[0]
+                let index = 0
+
+                for (const [current_index, current_message] of messages.entries()) {
+                    if (current_message.message.timestamp < message.message.timestamp) {
+                        message = current_message
+                        index = current_index
+                    }
+                }
+
+                messages.splice(index, 1)
+
+                if (message) {
+                    if (message.ack) {
+                        washima.handleAck(message.message)
+                    } else {
+                        washima.handleNewMessage(message.message)
+                    }
+                }
+
+                if (messages.length === 0) {
+                    Washima.messagesQueue.delete(key)
+                }
             }
         }
     }, 1000 * 1)
@@ -341,6 +373,98 @@ export class Washima {
         this.contact = ""
     }
 
+    async handleAck(message: Message) {
+        const io = getIoInstance()
+        const chat = await message.getChat()
+        try {
+            const updated = await WashimaMessage.update(message)
+            io.emit("washima:message:update", updated, chat.id._serialized)
+            io.emit(`washima:${this.id}:message`, { chat, message: updated })
+        } catch (error) {
+            // console.log(error)
+        }
+        const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+        this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+        this.emit()
+    }
+
+    async handleNewMessage(message: Message) {
+        const handler = async (message: WAWebJS.Message) => {
+            if (message.id.remote === "status@broadcast") return
+            if (await WashimaMessage.findBySid(message.id._serialized)) return
+            const contact = await message.getContact()
+            const chat = await message.getChat()
+
+            // console.log(JSON.stringify(message))
+
+            const io = getIoInstance()
+
+            if (message.hasMedia) {
+                await this.getCachedMedia(message)
+            }
+
+            const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+
+            this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+
+            this.companies.forEach(async (company) => {
+                const users = await company.getUsers()
+                users.forEach((user) =>
+                    user.notify("washima-message", {
+                        title: `${this.name}: ${chat.name}. ${chat.isGroup ? message.author : ""}`,
+                        body: message.body || "MEDIA",
+                    })
+                )
+            })
+            this.emit()
+            if (chat.isGroup && (await WashimaMessage.getByWrongId(message.id.id))) {
+                console.log("message already saved")
+                return // stopping message from being saved if it was sent by another washima
+            }
+
+            const washima_message = await WashimaMessage.new(
+                {
+                    chat_id: chat.id._serialized,
+                    washima_id: this.id,
+                    message,
+                    isGroup: chat.isGroup,
+                },
+                this.info.pushname,
+                contact
+            )
+
+            const payload = { chat, message: washima_message }
+            io.to(chat.id._serialized).emit("washima:message", payload)
+            io.to(this.id).emit("washima:chat", this.chats[index])
+            // io.emit("washima:message", { chat, message: washima_message }, this.id)
+            // io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
+
+            if (!message.fromMe && !chat.isGroup) {
+                const bots = await Bot.getByWashima(this.id)
+                bots.forEach((bot) => {
+                    bot.handleIncomingMessage({
+                        platform: "washima",
+                        platform_id: this.id,
+                        message: message.body,
+                        chat_id: chat.id._serialized,
+                        response: (text, media) => this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm, undefined, true),
+                        other_bots: bots.filter((item) => item.id !== bot.id),
+                    })
+                })
+            }
+
+            Board.handleWashimaNewMessage({ chat, company_id: this.companies[0].id, message: washima_message, washima: this })
+        }
+        try {
+            // ignore status updates
+            await handler(message)
+        } catch (error) {
+            if (error instanceof PrismaClientKnownRequestError && error.meta?.modelName === "WashimaMessage" && error.meta.target === "PRIMARY") {
+                handler(message).catch((err) => console.log(err))
+            }
+        }
+    }
+
     async initialize() {
         console.log(`initializing ${this.name} - ${this.number}`)
         this.status = "loading"
@@ -417,18 +541,11 @@ export class Washima {
             })
 
             this.client.on("message_ack", async (message, ack) => {
-                const chat = await message.getChat()
-                try {
-                    const updated = await WashimaMessage.update(message)
-                    io.emit("washima:message:update", updated, chat.id._serialized)
-                    io.emit(`washima:${this.id}:message`, { chat, message: updated })
-                } catch (error) {
-                    // console.log(error)
-                }
-                const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
-                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+                const contact = message.author || message.from
 
-                this.emit()
+                const current_queue = Washima.messagesQueue.get(contact)
+                const messages = current_queue ? current_queue.messages : []
+                Washima.messagesQueue.set(contact, { washima: this, messages: [...messages, { message, ack: true }] })
             })
 
             this.client.on("message_revoke_everyone", async (message, revoked) => {
@@ -464,88 +581,14 @@ export class Washima {
             })
 
             this.client.on("message_create", async (message) => {
-                const handler = async (message: WAWebJS.Message) => {
-                    if (message.id.remote === "status@broadcast") return
-                    if (await WashimaMessage.findBySid(message.id._serialized)) return
-                    const contact = await message.getContact()
-                    const chat = await message.getChat()
+                if (message.id.remote === "status@broadcast") return
+                if (await WashimaMessage.findBySid(message.id._serialized)) return
 
-                    // console.log(JSON.stringify(message))
+                const contact = message.author || message.from
 
-                    const io = getIoInstance()
-
-                    if (message.hasMedia) {
-                        await this.getCachedMedia(message)
-                    }
-
-                    const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
-
-                    this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
-
-                    this.companies.forEach(async (company) => {
-                        const users = await company.getUsers()
-                        users.forEach((user) =>
-                            user.notify("washima-message", {
-                                title: `${this.name}: ${chat.name}. ${chat.isGroup ? message.author : ""}`,
-                                body: message.body || "MEDIA",
-                            })
-                        )
-                    })
-                    this.emit()
-                    if (
-                        chat.isGroup &&
-                        Washima.washimas.some(
-                            (washima) => washima.id !== this.id && washima.info.wid._serialized === normalizeContactId(contact.id._serialized)
-                        )
-                    ) {
-                        return // stopping message from being saved if it was sent by another washima
-                    }
-
-                    const washima_message = await WashimaMessage.new(
-                        {
-                            chat_id: chat.id._serialized,
-                            washima_id: this.id,
-                            message,
-                            isGroup: chat.isGroup,
-                        },
-                        this.info.pushname,
-                        contact
-                    )
-
-                    const payload = { chat, message: washima_message }
-                    io.to(chat.id._serialized).emit("washima:message", payload)
-                    io.to(this.id).emit("washima:chat", this.chats[index])
-                    // io.emit("washima:message", { chat, message: washima_message }, this.id)
-                    // io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
-
-                    if (!message.fromMe && !chat.isGroup) {
-                        const bots = await Bot.getByWashima(this.id)
-                        bots.forEach((bot) => {
-                            bot.handleIncomingMessage({
-                                platform: "washima",
-                                platform_id: this.id,
-                                message: message.body,
-                                chat_id: chat.id._serialized,
-                                response: (text, media) => this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm, undefined, true),
-                                other_bots: bots.filter((item) => item.id !== bot.id),
-                            })
-                        })
-                    }
-
-                    Board.handleWashimaNewMessage({ chat, company_id: this.companies[0].id, message: washima_message, washima: this })
-                }
-                try {
-                    // ignore status updates
-                    await handler(message)
-                } catch (error) {
-                    if (
-                        error instanceof PrismaClientKnownRequestError &&
-                        error.meta?.modelName === "WashimaMessage" &&
-                        error.meta.target === "PRIMARY"
-                    ) {
-                        handler(message).catch((err) => console.log(err))
-                    }
-                }
+                const current_queue = Washima.messagesQueue.get(contact)
+                const messages = current_queue ? current_queue.messages : []
+                Washima.messagesQueue.set(contact, { washima: this, messages: [...messages, { message }] })
             })
 
             this.client.on("group_join", async (notification) => {
