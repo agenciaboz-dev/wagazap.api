@@ -1,32 +1,35 @@
 # Stage 1: Build Stage
 FROM node:22 AS build
 
+# Set working directory
 WORKDIR /app
+
+# Copy package.json and package-lock.json
 COPY package*.json ./
-COPY prisma ./prisma/
+
+# Install all dependencies (including devDependencies)
 RUN npm install --ignore-scripts
+
+# Copy the rest of the application code
 COPY . .
+
+# Generate Prisma client and format schema
 RUN npx prisma generate
+
+# Build the TypeScript application
 RUN npm run build
+
+# Remove development dependencies
 RUN npm prune --production
 
 # Stage 2: Production Stage
 FROM node:22
+
+# Set working directory
 WORKDIR /app
 
-# We don't need the standalone Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-
-# Install Google Chrome Stable and fonts
-# Note: this installs the necessary libs to make the browser work with Puppeteer.
-RUN apt-get update && apt-get install gnupg wget -y && \
-    wget --quiet --output-document=- https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor > /etc/apt/trusted.gpg.d/google-archive.gpg && \
-    sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' && \
-    apt-get update && \
-    apt-get install google-chrome-stable -y --no-install-recommends && \
-    # install ffmepg
-    apt-get install ffmpeg -y && \
-    rm -rf /var/lib/apt/lists/*
+# Copy package.json to the container
+COPY package*.json ./
 
 # Copy node modules and build from the build stage
 COPY --from=build /app/node_modules ./node_modules
@@ -34,4 +37,4 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 
 # Start the application
-CMD ["/bin/bash", "-c", "rm -f static/washima/auth/*/session/SingletonLock && npx prisma migrate deploy && node dist/index.js"]
+CMD ["/bin/bash", "-c", "npx prisma migrate deploy && node dist/index.js"]
