@@ -5,7 +5,10 @@ import { router } from "./routes"
 import bodyParser from "body-parser"
 import cookieParser from "cookie-parser"
 import http from "http"
+import { getIoInstance, handleSocket, initializeIoServer } from "./src/io/socket"
 import fileUpload from "express-fileupload"
+import { Nagazap } from "./src/class/Nagazap"
+import { Washima } from "./src/class/Washima/Washima"
 import express_prom_bundle from "express-prom-bundle"
 
 const metricsMiddleware = express_prom_bundle({
@@ -53,6 +56,15 @@ app.use(
 const server = http.createServer(app)
 server.setTimeout(1000 * 60 * 60)
 
+initializeIoServer(server)
+const io = getIoInstance()
+
+io.on("connection", (socket) => {
+    handleSocket(socket)
+})
+
 server.listen(port, () => {
     console.log(`[server]: Server is running at http://${port}`)
+    Washima.initialize()
+    Nagazap.initialize()
 })
