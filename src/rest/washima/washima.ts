@@ -321,4 +321,20 @@ router.get("/stop-start", async (request: WashimaRequest & UserRequest, response
     }
 })
 
+router.get("/pairing-code", async (request: WashimaRequest, response: Response) => {
+    const phone = request.query.phone as string | undefined
+
+    if (phone) {
+        try {
+            const code = await request.washima!.requestPairingCode(phone)
+            return response.json(code)
+        } catch (error) {
+            console.log(error)
+            response.status(500).send(error)
+        }
+    } else {
+        response.status(400).send("phone param is required")
+    }
+})
+
 export default router

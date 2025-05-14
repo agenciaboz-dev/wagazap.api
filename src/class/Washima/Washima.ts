@@ -36,6 +36,7 @@ export interface WashimaDiskMetrics {
 
 export interface WashimaForm {
     company_id: string
+    // number: string
 }
 
 export interface WashimaMessageId {
@@ -465,6 +466,13 @@ export class Washima {
         }
     }
 
+    async requestPairingCode(phone: string) {
+        console.log("requesting pairing code for ", phone)
+        const code = await this.client.requestPairingCode("55" + phone, true)
+        console.log("pairing code ", code)
+        return code
+    }
+
     async initialize() {
         console.log(`initializing ${this.name} - ${this.number}`)
         this.status = "loading"
@@ -476,6 +484,7 @@ export class Washima {
             const io = getIoInstance()
             this.emit()
             await this.client.initialize()
+            io.to(this.id).emit("initialized")
 
             //* CLIENT EVENTS
 
