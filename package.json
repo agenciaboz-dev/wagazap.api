@@ -17,6 +17,7 @@
         "@aternus/csv-to-xlsx": "^2.1.5",
         "@prisma/client": "^5.1.1",
         "@xyflow/react": "^12.4.3",
+        "async-mutex": "^0.5.0",
         "axios": "^1.4.0",
         "body-parser": "^1.20.2",
         "cookie-parser": "^1.4.6",
@@ -37,7 +38,7 @@
         "socket.io": "^4.7.2",
         "tmp-promise": "^3.0.3",
         "uid": "^2.0.2",
-        "whatsapp-web.js": "pedroslopez/whatsapp-web.js#3180/head"
+        "whatsapp-web.js": "git+ssh://git@github.com/MobCode100/whatsapp-web.js.git#webpack-exodus"
     },
     "devDependencies": {
         "@types/cookie-parser": "^1.4.3",

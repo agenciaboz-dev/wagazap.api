@@ -22,7 +22,10 @@ import { Board } from "../Board/Board"
 import { existsSync, mkdirSync, writeFileSync } from "fs"
 import path from "path"
 import { normalizeContactId } from "../../tools/normalize"
+import { Mutex } from "async-mutex"
 // import numeral from 'numeral'
+
+const mutex = new Mutex()
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
@@ -151,35 +154,35 @@ export class Washima {
             }
         }
 
-        if (Washima.messagesQueue.size > 0) {
-            for (const [key, value] of Washima.messagesQueue.entries()) {
-                const { washima, messages } = value
-                if (messages.length === 0) return
-                let message = messages[0]
-                let index = 0
+        // if (Washima.messagesQueue.size > 0) {
+        //     for (const [key, value] of Washima.messagesQueue.entries()) {
+        //         const { washima, messages } = value
+        //         if (messages.length === 0) return
+        //         let message = messages[0]
+        //         let index = 0
 
-                for (const [current_index, current_message] of messages.entries()) {
-                    if (current_message.message.timestamp < message.message.timestamp) {
-                        message = current_message
-                        index = current_index
-                    }
-                }
+        //         for (const [current_index, current_message] of messages.entries()) {
+        //             if (current_message.message.timestamp < message.message.timestamp) {
+        //                 message = current_message
+        //                 index = current_index
+        //             }
+        //         }
 
-                messages.splice(index, 1)
+        //         messages.splice(index, 1)
 
-                if (message) {
-                    if (message.ack) {
-                        washima.handleAck(message.message)
-                    } else {
-                        washima.handleNewMessage(message.message)
-                    }
-                }
+        //         if (message) {
+        //             if (message.ack) {
+        //                 washima.handleAck(message.message)
+        //             } else {
+        //                 washima.handleNewMessage(message.message)
+        //             }
+        //         }
 
-                if (messages.length === 0) {
-                    Washima.messagesQueue.delete(key)
-                }
-            }
-        }
+        //         if (messages.length === 0) {
+        //             Washima.messagesQueue.delete(key)
+        //         }
+        //     }
+        // }
     }, 1000 * 1)
 
     static find(id: string) {
@@ -383,18 +386,24 @@ export class Washima {
     }
 
     async handleAck(message: Message) {
-        const io = getIoInstance()
-        const chat = await message.getChat()
         try {
-            const updated = await WashimaMessage.update(message)
-            io.emit("washima:message:update", updated, chat.id._serialized)
-            io.emit(`washima:${this.id}:message`, { chat, message: updated })
+            await mutex.runExclusive(async () => {
+                const io = getIoInstance()
+                const chat = await message.getChat()
+                try {
+                    const updated = await WashimaMessage.update(message)
+                    io.emit("washima:message:update", updated, chat.id._serialized)
+                    io.emit(`washima:${this.id}:message`, { chat, message: updated })
+                } catch (error) {
+                    // console.log(error)
+                }
+                const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+                this.emit()
+            })
         } catch (error) {
-            // console.log(error)
+            mutex.release()
         }
-        const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
-        this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
-        this.emit()
     }
 
     async handleNewMessage(message: Message) {
@@ -465,12 +474,13 @@ export class Washima {
             Board.handleWashimaNewMessage({ chat, company_id: this.companies[0].id, message: washima_message, washima: this })
         }
         try {
-            // ignore status updates
-            await handler(message)
+            await mutex.runExclusive(async () => await handler(message))
         } catch (error) {
-            if (error instanceof PrismaClientKnownRequestError && error.meta?.modelName === "WashimaMessage" && error.meta.target === "PRIMARY") {
-                handler(message).catch((err) => console.log(err))
-            }
+            console.log(error)
+            mutex.release()
+            // if (error instanceof PrismaClientKnownRequestError && error.meta?.modelName === "WashimaMessage" && error.meta.target === "PRIMARY") {
+            //     handler(message).catch((err) => console.log(err))
+            // }
         }
     }
 
@@ -569,9 +579,10 @@ export class Washima {
             this.client.on("message_ack", async (message, ack) => {
                 const contact = message.author || message.from
 
-                const current_queue = Washima.messagesQueue.get(contact)
-                const messages = current_queue ? current_queue.messages : []
-                Washima.messagesQueue.set(contact, { washima: this, messages: [...messages, { message, ack: true }] })
+                // const current_queue = Washima.messagesQueue.get(contact)
+                // const messages = current_queue ? current_queue.messages : []
+                // Washima.messagesQueue.set(contact, { washima: this, messages: [...messages, { message, ack: true }] })
+                this.handleAck(message)
             })
 
             this.client.on("message_revoke_everyone", async (message, revoked) => {
@@ -612,9 +623,10 @@ export class Washima {
 
                 const contact = message.author || message.from
 
-                const current_queue = Washima.messagesQueue.get(contact)
-                const messages = current_queue ? current_queue.messages : []
-                Washima.messagesQueue.set(contact, { washima: this, messages: [...messages, { message }] })
+                // const current_queue = Washima.messagesQueue.get(contact)
+                // const messages = current_queue ? current_queue.messages : []
+                // Washima.messagesQueue.set(contact, { washima: this, messages: [...messages, { message }] })
+                this.handleNewMessage(message)
             })
 
             this.client.on("group_join", async (notification) => {
@@ -720,23 +732,29 @@ export class Washima {
     }
 
     async sendMessage(chat_id: string, message?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage, from_bot?: boolean) {
-        const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
-        if (!message && !mediaMessage) return
+        try {
+            await mutex.runExclusive(async () => {
+                const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
+                if (!message && !mediaMessage) return
 
-        const chat = await this.client.getChatById(chat_id)
-        await chat.sendMessage((message || mediaMessage)!, {
-            media: mediaMessage,
-            sendAudioAsVoice: true,
-            quotedMessageId: replyMessage?.sid,
-        })
+                const chat = await this.client.getChatById(chat_id)
+                await chat.sendMessage((message || mediaMessage)!, {
+                    media: mediaMessage,
+                    sendAudioAsVoice: true,
+                    quotedMessageId: replyMessage?.sid,
+                })
 
-        if (!from_bot) {
-            const company = await Company.getById(this.companies[0].id)
-            const bots = await company.getBots()
-            const activeBot = bots.find((bot) => bot.active_on.find((active_chat) => active_chat.chat_id === chat_id))
-            if (activeBot) {
-                activeBot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
-            }
+                if (!from_bot) {
+                    const company = await Company.getById(this.companies[0].id)
+                    const bots = await company.getBots()
+                    const activeBot = bots.find((bot) => bot.active_on.find((active_chat) => active_chat.chat_id === chat_id))
+                    if (activeBot) {
+                        activeBot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
+                    }
+                }
+            })
+        } catch (error) {
+            mutex.release()
         }
     }
 
