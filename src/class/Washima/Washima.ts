@@ -406,11 +406,11 @@ export class Washima {
         }
     }
 
-    async handleNewMessage(message: Message) {
+    async handleNewMessage(message: Message, sendingNow?: boolean) {
         const handler = async (message: WAWebJS.Message) => {
             if (message.id.remote === "status@broadcast") return
-            if (await WashimaMessage.findBySid(message.id._serialized)) return
-            const contact = await message.getContact()
+            if (!sendingNow && (await WashimaMessage.findBySid(message.id._serialized))) return
+            const contact = sendingNow ? ({ id: { _serialized: this.info.wid._serialized } } as Contact) : await message.getContact()
             const chat = await message.getChat()
 
             // console.log(JSON.stringify(message))
@@ -425,17 +425,20 @@ export class Washima {
 
             this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
-            this.companies.forEach(async (company) => {
-                const users = await company.getUsers()
-                users.forEach((user) =>
-                    user.notify("washima-message", {
-                        title: `${this.name}: ${chat.name}. ${chat.isGroup ? message.author : ""}`,
-                        body: message.body || "MEDIA",
-                    })
-                )
-            })
+            if (!sendingNow) {
+                this.companies.forEach(async (company) => {
+                    const users = await company.getUsers()
+                    users.forEach((user) =>
+                        user.notify("washima-message", {
+                            title: `${this.name}: ${chat.name}. ${chat.isGroup ? message.author : ""}`,
+                            body: message.body || "MEDIA",
+                        })
+                    )
+                })
+            }
+
             this.emit()
-            if (chat.isGroup && (await WashimaMessage.getByWrongId(message.id.id))) {
+            if (!sendingNow && chat.isGroup && (await WashimaMessage.getByWrongId(message.id.id))) {
                 console.log("message already saved")
                 return // stopping message from being saved if it was sent by another washima
             }
@@ -474,10 +477,16 @@ export class Washima {
             Board.handleWashimaNewMessage({ chat, company_id: this.companies[0].id, message: washima_message, washima: this })
         }
         try {
-            await mutex.runExclusive(async () => await handler(message))
+            if (sendingNow) {
+                await handler(message)
+            } else {
+                await mutex.runExclusive(async () => await handler(message))
+            }
         } catch (error) {
             console.log(error)
-            mutex.release()
+            if (!sendingNow) {
+                mutex.release()
+            }
             // if (error instanceof PrismaClientKnownRequestError && error.meta?.modelName === "WashimaMessage" && error.meta.target === "PRIMARY") {
             //     handler(message).catch((err) => console.log(err))
             // }
@@ -731,30 +740,26 @@ export class Washima {
         return message
     }
 
-    async sendMessage(chat_id: string, message?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage, from_bot?: boolean) {
-        try {
-            await mutex.runExclusive(async () => {
-                const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
-                if (!message && !mediaMessage) return
+    async sendMessage(chat_id: string, text?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage, from_bot?: boolean) {
+        const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
+        if (!text && !mediaMessage) return
 
-                const chat = await this.client.getChatById(chat_id)
-                await chat.sendMessage((message || mediaMessage)!, {
-                    media: mediaMessage,
-                    sendAudioAsVoice: true,
-                    quotedMessageId: replyMessage?.sid,
-                })
+        const chat = await this.client.getChatById(chat_id)
+        const message = await chat.sendMessage((text || mediaMessage)!, {
+            media: mediaMessage,
+            sendAudioAsVoice: true,
+            quotedMessageId: replyMessage?.sid,
+        })
 
-                if (!from_bot) {
-                    const company = await Company.getById(this.companies[0].id)
-                    const bots = await company.getBots()
-                    const activeBot = bots.find((bot) => bot.active_on.find((active_chat) => active_chat.chat_id === chat_id))
-                    if (activeBot) {
-                        activeBot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
-                    }
-                }
-            })
-        } catch (error) {
-            mutex.release()
+        await this.handleNewMessage(message, true)
+
+        if (!from_bot) {
+            const company = await Company.getById(this.companies[0].id)
+            const bots = await company.getBots()
+            const activeBot = bots.find((bot) => bot.active_on.find((active_chat) => active_chat.chat_id === chat_id))
+            if (activeBot) {
+                activeBot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
+            }
         }
     }
 
