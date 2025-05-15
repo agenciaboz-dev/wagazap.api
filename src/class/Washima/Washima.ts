@@ -28,7 +28,7 @@ import { normalizeContactId } from "../../tools/normalize"
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
 export type WashimaMediaPrisma = Prisma.WashimaMediaGetPayload<{}>
 export type WashimaProfilePicPrisma = Prisma.WashimaProfilePicGetPayload<{}>
-export type WashimaStatus = "loading" | "ready" | "qrcode" | "error" | "stopped"
+export type WashimaStatus = "loading" | "ready" | "qrcode" | "error" | "stopped" | "pairingcode"
 export interface WashimaDiskMetrics {
     messages: number
     media: number
@@ -36,7 +36,7 @@ export interface WashimaDiskMetrics {
 
 export interface WashimaForm {
     company_id: string
-    // number: string
+    number?: string
 }
 
 export interface WashimaMessageId {
@@ -144,7 +144,7 @@ export class Washima {
     static messagesQueue = new Map<string, { washima: Washima; messages: { message: Message; ack?: boolean }[] }>()
     static listInterval = setInterval(() => {
         if (Washima.initializing.size < Washima.initializeBatch) {
-            const next_washima = Washima.waitingList.pop()
+            const next_washima = Washima.waitingList.shift()
             if (next_washima) {
                 Washima.initializing.set(next_washima.id, next_washima)
                 next_washima.initialize()
@@ -219,7 +219,7 @@ export class Washima {
                 id: uid(),
                 created_at: new Date().getTime().toString(),
                 name: "",
-                number: "",
+                number: data.number ? data.number.replace(/\D/g, "") : "",
                 companies: { connect: { id: data.company_id } },
             },
         })
@@ -322,6 +322,8 @@ export class Washima {
         this.active = data.active
         this.ready = false
 
+        console.log(this.number)
+
         this.client = new Client({
             authStrategy: new LocalAuth({ dataPath: `static/washima/auth/whatsapp.auth.${this.id}` }),
             puppeteer: {
@@ -368,6 +370,12 @@ export class Washima {
                 ],
                 executablePath: "/usr/bin/google-chrome-stable",
             },
+            pairWithPhoneNumber: this.number
+                ? {
+                      phoneNumber: "55" + this.number,
+                      showNotification: true,
+                  }
+                : undefined,
         })
         this.info = this.client.info
         this.chats = []
@@ -466,13 +474,6 @@ export class Washima {
         }
     }
 
-    async requestPairingCode(phone: string) {
-        console.log("requesting pairing code for ", phone)
-        const code = await this.client.requestPairingCode("55" + phone, true)
-        console.log("pairing code ", code)
-        return code
-    }
-
     async initialize() {
         console.log(`initializing ${this.name} - ${this.number}`)
         this.status = "loading"
@@ -488,6 +489,21 @@ export class Washima {
 
             //* CLIENT EVENTS
 
+            this.client.on("code", (code) => {
+                console.log("Linking code:", code)
+                if (!this.qrcode) {
+                    Washima.initializing.delete(this.id)
+                } else {
+                    this.stop()
+                    return
+                }
+
+                io.to(this.id).emit("code", code)
+                this.qrcode = code
+                this.status = "pairingcode"
+                this.emit()
+            })
+
             this.client.on("qr", (qr) => {
                 console.log({ qr })
                 if (!this.qrcode) {
@@ -497,6 +513,7 @@ export class Washima {
                     return
                 }
 
+                io.to(this.id).emit("code", qr)
                 this.qrcode = qr
                 this.status = "qrcode"
                 this.emit()
@@ -748,6 +765,8 @@ export class Washima {
             this.status = "stopped"
             await this.client.destroy()
             this.emit()
+            Washima.waitingList = Washima.waitingList.filter((item) => item.id !== this.id)
+            Washima.initializing.delete(this.id)
         } catch (error) {
             console.log(error)
         }

@@ -37,7 +37,7 @@
         "socket.io": "^4.7.2",
         "tmp-promise": "^3.0.3",
         "uid": "^2.0.2",
-        "whatsapp-web.js": "1.26.1-alpha.3"
+        "whatsapp-web.js": "pedroslopez/whatsapp-web.js#3180/head"
     },
     "devDependencies": {
         "@types/cookie-parser": "^1.4.3",
