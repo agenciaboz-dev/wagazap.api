@@ -11,6 +11,10 @@ import { Nagazap } from "./src/class/Nagazap"
 import { Washima } from "./src/class/Washima/Washima"
 import express_prom_bundle from "express-prom-bundle"
 
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "Reason:", reason)
+})
+
 const metricsMiddleware = express_prom_bundle({
     includeMethod: true,
     includePath: true,
