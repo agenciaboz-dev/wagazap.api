@@ -5,7 +5,20 @@ import { WashimaMessageId } from "./Washima"
 import Fuse from "fuse.js"
 import { normalizeContactId } from "../../tools/normalize"
 
-export type MessageType = "ptt" | "video" | "image" | "text" | "revoked" | "sticker" | "audio" | "chat" | "document" | "sticker" | "call_log"
+export type MessageType =
+    | "ptt"
+    | "video"
+    | "image"
+    | "text"
+    | "revoked"
+    | "sticker"
+    | "audio"
+    | "chat"
+    | "document"
+    | "sticker"
+    | "call_log"
+    | "e2e_notification"
+    | "notification_template"
 
 export enum MessageAck {
     error = -1,
