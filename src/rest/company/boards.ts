@@ -50,11 +50,11 @@ router.patch("/", async (request: BoardAuthRequest, response: Response) => {
     console.log(data)
 
     try {
-        if (data.washima_settings && data.washima_settings.length > 0) {
+        if (data.washima_settings) {
             await request.board!.handleWashimaSettingsChange(data.washima_settings)
         }
 
-        if (data.nagazap_settings && data.nagazap_settings.length > 0) {
+        if (data.nagazap_settings) {
             await request.board!.handleNagazapSettingsChange(data.nagazap_settings)
         }
 
