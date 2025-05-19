@@ -541,11 +541,11 @@ export class Nagazap {
         const io = getIoInstance()
         io.emit(`nagazap:${this.id}:message`, message)
 
-        if (message.text.toLowerCase() == this.blacklistTrigger) {
-            this.addToBlacklist(message.from, message.name)
-        }
-
         if (!this.isMessageFromMe(message)) {
+            if (message.text.toLowerCase() == this.blacklistTrigger) {
+                this.addToBlacklist(message.from, message.name)
+            }
+
             const bots = await Bot.getByNagazap(this.id)
             bots.forEach((bot) => {
                 bot.handleIncomingMessage({

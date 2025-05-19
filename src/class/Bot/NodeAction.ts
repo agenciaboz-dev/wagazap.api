@@ -95,11 +95,11 @@ export class NodeAction {
                 if (data.platform !== "nagazap") return
                 const nagazap = await Nagazap.getById(data.platform_id)
                 const chat = await nagazap.getMessages(data.chat_id)
-                if (chat.length === 0) return
 
-                const lastMessage = chat[chat.length - 1]
+                const incomingMessage = chat.find((message) => !nagazap.isMessageFromMe(message))
+                if (!incomingMessage) return
 
-                await nagazap.addToBlacklist(lastMessage.from, lastMessage.name)
+                await nagazap.addToBlacklist(incomingMessage.from, incomingMessage.name)
                 break
             }
         }
