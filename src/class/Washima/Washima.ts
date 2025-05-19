@@ -421,9 +421,14 @@ export class Washima {
                 await this.getCachedMedia(message)
             }
 
-            const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+            let index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
 
-            this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+            if (index === -1) {
+                this.chats.push(chat)
+                index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+            } else {
+                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+            }
 
             if (!sendingNow) {
                 this.companies.forEach(async (company) => {
