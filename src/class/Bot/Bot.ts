@@ -229,6 +229,7 @@ export class Bot {
                             base64,
                             mimetype: media.mimetype,
                         })
+                        console.log(file)
 
                         media.base64 = undefined
                         media.url = file.url
