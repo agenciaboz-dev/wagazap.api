@@ -330,7 +330,7 @@ export class Bot {
                             : { url: message_node.media.url, type: message_node.media.type }
                         : undefined
 
-                    data.response(message_node.value, media)
+                    await data.response(message_node.value, media)
                     if (message_node.actions) {
                         for (const actionDto of message_node.actions) {
                             const action = new NodeAction(actionDto)
