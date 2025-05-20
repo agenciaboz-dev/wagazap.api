@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client"
-import WAWebJS, { Client, Contact, LocalAuth, Message, MessageMedia } from "whatsapp-web.js"
+import WAWebJS, { Client, Contact, LocalAuth, Message, MessageMedia, MessageTypes } from "whatsapp-web.js"
 import { prisma } from "../../prisma"
 import { FileUpload, WithoutFunctions } from "../helpers"
 import { uid } from "uid"
@@ -421,8 +421,12 @@ export class Washima {
                 await this.getCachedMedia(message)
             }
 
+            const is_notification = message.type === MessageTypes.E2E_NOTIFICATION || message.type === MessageTypes.NOTIFICATION_TEMPLATE
+
             let index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
-            const newChat = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+            const newChat = is_notification
+                ? { ...chat }
+                : { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
             if (index === -1) {
                 this.chats.push(newChat)
