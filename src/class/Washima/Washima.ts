@@ -513,6 +513,7 @@ export class Washima {
             Washima.push(this)
             const io = getIoInstance()
             this.emit()
+            await this.clearSingleton()
             await this.client.initialize()
             io.to(this.id).emit("initialized")
 
@@ -791,6 +792,14 @@ export class Washima {
         return media
     }
 
+    async clearSingleton() {
+        try {
+            await deleteDirectory(`static/washima/auth/${this.id}/session/SingletonLock`)
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
     async stop() {
         this.status = "loading"
         this.emit()
@@ -800,6 +809,7 @@ export class Washima {
             this.emit()
             Washima.waitingList = Washima.waitingList.filter((item) => item.id !== this.id)
             Washima.initializing.delete(this.id)
+            await this.clearSingleton()
         } catch (error) {
             console.log(error)
         }
