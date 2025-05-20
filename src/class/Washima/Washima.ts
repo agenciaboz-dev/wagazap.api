@@ -470,7 +470,7 @@ export class Washima {
             // io.emit("washima:message", { chat, message: washima_message }, this.id)
             // io.emit(`washima:${this.id}:message`, { chat: this.chats[index], message: washima_message })
 
-            if (!message.fromMe && !chat.isGroup) {
+            if (!is_notification && !message.fromMe && !chat.isGroup) {
                 const bots = await Bot.getByWashima(this.id)
                 bots.forEach((bot) => {
                     bot.handleIncomingMessage({
