@@ -422,12 +422,13 @@ export class Washima {
             }
 
             let index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+            const newChat = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
 
             if (index === -1) {
-                this.chats.push(chat)
+                this.chats.push(newChat)
                 index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
             } else {
-                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+                this.chats[index] = newChat
             }
 
             if (!sendingNow) {
