@@ -8,7 +8,7 @@ import { Washima } from "../Washima/Washima"
 import { WashimaMessage } from "../Washima/WashimaMessage"
 import { getIoInstance } from "../../io/socket"
 
-export type ValidAction = "board:room:chat:new" | "bot:end" | "nagazap:blacklist:add"
+export type ValidAction = "board:room:chat:new" | "bot:end" | "nagazap:blacklist:add" | "nagazap:blacklist:remove"
 
 export type NodeActionDto = WithoutFunctions<NodeAction>
 
@@ -100,6 +100,18 @@ export class NodeAction {
                 if (!incomingMessage) return
 
                 await nagazap.addToBlacklist(incomingMessage.from, incomingMessage.name)
+                break
+            }
+
+            case "nagazap:blacklist:remove": {
+                if (data.platform !== "nagazap") return
+                const nagazap = await Nagazap.getById(data.platform_id)
+                const chat = await nagazap.getMessages(data.chat_id)
+
+                const incomingMessage = chat.find((message) => !nagazap.isMessageFromMe(message))
+                if (!incomingMessage) return
+
+                await nagazap.removeFromBlacklist(incomingMessage.from)
                 break
             }
         }
