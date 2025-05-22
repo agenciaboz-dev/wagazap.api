@@ -23,6 +23,7 @@ import { existsSync, mkdirSync, writeFileSync } from "fs"
 import path from "path"
 import { normalizeContactId } from "../../tools/normalize"
 import { Mutex } from "async-mutex"
+import { WhastappButtonAction, WhatsappInteractiveForm } from "../Nagazap"
 // import numeral from 'numeral'
 
 const mutex = new Mutex()
@@ -326,7 +327,7 @@ export class Washima {
         this.active = data.active
         this.ready = false
         this.stopped = data.stopped
-        this.status = this.stopped ? 'stopped' : 'loading'
+        this.status = this.stopped ? "stopped" : "loading"
 
         console.log(this.number)
 
@@ -481,7 +482,8 @@ export class Washima {
                         platform_id: this.id,
                         message: message.body,
                         chat_id: chat.id._serialized,
-                        response: (text, media) => this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm, undefined, true),
+                        response: (text, media, interactive) =>
+                            this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm, undefined, true, interactive),
                         other_bots: bots.filter((item) => item.id !== bot.id),
                     })
                 })
@@ -754,9 +756,28 @@ export class Washima {
         return message
     }
 
-    async sendMessage(chat_id: string, text?: string, media?: WashimaMediaForm, replyMessage?: WashimaMessage, from_bot?: boolean) {
+    async sendMessage(
+        chat_id: string,
+        _text?: string,
+        media?: WashimaMediaForm,
+        replyMessage?: WashimaMessage,
+        from_bot?: boolean,
+        interactive?: WhatsappInteractiveForm
+    ) {
         const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
-        if (!text && !mediaMessage) return
+        if (!_text && !mediaMessage && !interactive) return
+
+        let text = _text
+
+        if (interactive && text) {
+            text = `${text}\n___`
+            if (interactive.type === "button") {
+                ;(interactive.action as WhastappButtonAction).buttons.forEach((button, index) => {
+                    const count = index + 1
+                    text = `${text}\n\n➡️ *${count}.* ${button.reply.title}`
+                })
+            }
+        }
 
         const chat = await this.client.getChatById(chat_id)
         const message = await chat.sendMessage((text || mediaMessage)!, {
