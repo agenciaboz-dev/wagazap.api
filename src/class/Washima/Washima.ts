@@ -23,7 +23,7 @@ import { existsSync, mkdirSync, writeFileSync } from "fs"
 import path from "path"
 import { normalizeContactId } from "../../tools/normalize"
 import { Mutex } from "async-mutex"
-import { WhastappButtonAction, WhatsappInteractiveForm } from "../Nagazap"
+import { WhastappButtonAction, WhatsappInteractiveForm, WhatsappListAction } from "../Nagazap"
 // import numeral from 'numeral'
 
 const mutex = new Mutex()
@@ -775,6 +775,15 @@ export class Washima {
                 ;(interactive.action as WhastappButtonAction).buttons.forEach((button, index) => {
                     const count = index + 1
                     text = `${text}\n\n> \`${count}\` ${button.reply.title}`
+                })
+            }
+
+            if (interactive.type === "list") {
+                ;(interactive.action as WhatsappListAction).sections.forEach((section) => {
+                    section.rows.forEach((button, index) => {
+                        const count = index + 1
+                        text = `${text}\n\n> \`${count}\` ${button.title}`
+                    })
                 })
             }
         }

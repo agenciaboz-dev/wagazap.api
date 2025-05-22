@@ -48,7 +48,12 @@ router.post("/messages", async (request: Request, response: Response) => {
                             { type: "button", data: message.button?.text },
                             {
                                 type: "interactive",
-                                data: message.interactive?.type === "button_reply" ? message.interactive.button_reply.title : undefined,
+                                data:
+                                    message.interactive?.type === "button_reply"
+                                        ? message.interactive.button_reply?.title
+                                        : message.interactive?.type === "list_reply"
+                                        ? message.interactive.list_reply?.title
+                                        : undefined,
                             },
                         ]
                         const data = data_types.find((item) => item.type === message.type)
