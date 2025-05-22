@@ -59,6 +59,7 @@ model Washima {
     number          String
     created_at      String
     active          Boolean             @default(true)
+    stopped         Boolean             @default(false)
 
     companies       Company[]
     bots            Bot[]

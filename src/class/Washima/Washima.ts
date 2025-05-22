@@ -575,7 +575,7 @@ export class Washima {
                 io.emit(`washima:${this.id}:init`, "Pronto", 4)
                 console.log(`washima:${this.id}:init`, "Pronto", 4)
 
-                this.status = "ready"
+                // this.status = "ready"
 
                 this.number = this.info.wid.user.slice(2)
                 this.name = this.info.pushname
@@ -804,7 +804,7 @@ export class Washima {
         this.status = "loading"
         this.emit()
         try {
-            this.status = "stopped"
+            await this.setStopped()
             await this.client.destroy()
             this.emit()
             Washima.waitingList = Washima.waitingList.filter((item) => item.id !== this.id)
@@ -1043,7 +1043,7 @@ export class Washima {
 
         // writeFileSync(filePath, JSON.stringify(formattedLogs))
         this.syncing = false
-        this.status = "ready"
+        await this.setReady()
         this.emit()
     }
 
@@ -1111,6 +1111,16 @@ export class Washima {
         }
 
         return []
+    }
+
+    async setReady() {
+        this.status = "ready"
+        await prisma.washima.update({ where: { id: this.id }, data: { stopped: false } })
+    }
+
+    async setStopped() {
+        this.status = "stopped"
+        await prisma.washima.update({ where: { id: this.id }, data: { stopped: true } })
     }
 
     toJSON() {
