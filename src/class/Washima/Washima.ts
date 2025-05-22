@@ -127,6 +127,7 @@ export class Washima {
     created_at: string
     active: boolean
     ready: boolean
+    stopped: boolean
 
     client: Client
     qrcode?: string
@@ -208,7 +209,7 @@ export class Washima {
         const washimas = await Washima.list()
         console.log(`${washimas.length} whatsapp numbers`)
 
-        Washima.waitingList = washimas
+        Washima.waitingList = washimas.filter((washima) => !washima.stopped)
     }
 
     static push(washima: Washima) {
@@ -324,6 +325,7 @@ export class Washima {
         this.created_at = data.created_at
         this.active = data.active
         this.ready = false
+        this.stopped = data.stopped
 
         console.log(this.number)
 
@@ -1115,12 +1117,14 @@ export class Washima {
 
     async setReady() {
         this.status = "ready"
-        await prisma.washima.update({ where: { id: this.id }, data: { stopped: false } })
+        this.stopped = false
+        await this.update({ stopped: false })
     }
 
     async setStopped() {
         this.status = "stopped"
-        await prisma.washima.update({ where: { id: this.id }, data: { stopped: true } })
+        this.stopped = true
+        await this.update({ stopped: true })
     }
 
     toJSON() {
