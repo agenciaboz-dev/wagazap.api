@@ -560,7 +560,10 @@ export class Nagazap {
 
         const prisma_message = await prisma.nagazapMessage.create({
             data: {
-                ...data,
+                name: data.name,
+                text: data.text,
+                from_bot: data.from_bot,
+                type: data.type,
                 nagazap_id: this.id,
                 from: normalizePhoneNumber(data.from),
                 timestamp: (Number(data.timestamp) * 1000).toString(),
@@ -949,6 +952,10 @@ export class Nagazap {
 
         if (form.type === "image" || form.type === "video") {
             form[form.type] = { link: data.media?.url, caption: data.text }
+        }
+
+        if (form.type === "interactive" && form.interactive) {
+            form.interactive.body.text = data.text
         }
 
         const message = await this.saveMessage({
