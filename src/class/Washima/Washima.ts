@@ -1117,14 +1117,12 @@ export class Washima {
 
     async setReady() {
         this.status = "ready"
-        this.stopped = false
-        await this.update({ stopped: false })
+        await prisma.washima.update({ where: { id: this.id }, data: { stopped: false } })
     }
 
     async setStopped() {
         this.status = "stopped"
-        this.stopped = true
-        await this.update({ stopped: true })
+        await prisma.washima.update({ where: { id: this.id }, data: { stopped: true } })
     }
 
     toJSON() {
