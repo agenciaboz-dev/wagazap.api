@@ -465,6 +465,7 @@ export class Bot {
             return nodesData
         } else {
             const options = this.getNodeChildren(chat.current_node_id).map((node) => node.data.value)
+            console.log({ incoming_message })
             return [{ value: `Não entendi. As opções são:\n* ${options.join("\n* ")}`, media: undefined, actions: undefined, interactive: undefined }]
         }
     }

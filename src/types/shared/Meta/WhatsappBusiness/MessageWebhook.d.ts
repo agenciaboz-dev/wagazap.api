@@ -57,6 +57,13 @@ export interface MessageWebhook {
                                     id: string
                                 }
                                 type: NagaMessageType
+                                interactive?: {
+                                    type: "button_reply"
+                                    button_reply: {
+                                        id: string
+                                        title: string
+                                    }
+                                }
                             }
                         ]
                     }

@@ -138,7 +138,7 @@ export class Washima {
 
     companies: Company[] = []
     syncing = false
-    status: WashimaStatus = "loading"
+    status: WashimaStatus
 
     static initializeBatch = 4
     static washimas: Washima[] = []
@@ -326,6 +326,7 @@ export class Washima {
         this.active = data.active
         this.ready = false
         this.stopped = data.stopped
+        this.status = this.stopped ? 'stopped' : 'loading'
 
         console.log(this.number)
 
@@ -1117,12 +1118,18 @@ export class Washima {
 
     async setReady() {
         this.status = "ready"
-        await prisma.washima.update({ where: { id: this.id }, data: { stopped: false } })
+        if (this.stopped) {
+            this.stopped = false
+            await prisma.washima.update({ where: { id: this.id }, data: { stopped: false } })
+        }
     }
 
     async setStopped() {
         this.status = "stopped"
-        await prisma.washima.update({ where: { id: this.id }, data: { stopped: true } })
+        if (!this.stopped) {
+            this.stopped = true
+            await prisma.washima.update({ where: { id: this.id }, data: { stopped: true } })
+        }
     }
 
     toJSON() {

@@ -46,10 +46,14 @@ router.post("/messages", async (request: Request, response: Response) => {
                             { type: "text", data: message.text?.body },
                             { type: "video", data: message.video?.id },
                             { type: "button", data: message.button?.text },
+                            {
+                                type: "interactive",
+                                data: message.interactive?.type === "button_reply" ? message.interactive.button_reply.title : undefined,
+                            },
                         ]
                         const data = data_types.find((item) => item.type === message.type)
                         if (data && data.data) {
-                            if (data.type !== "text" && data.type !== "button" && data.type !== "reaction") {
+                            if (!["text", "button", "reaction", "interactive"].includes(data.type)) {
                                 const media_url = await nagazap.downloadMedia(data.data)
                                 data.data = media_url
                             }

@@ -64,7 +64,7 @@ export interface WhatsappInteractiveForm {
     action: WhatsappListAction | WhastappButtonAction
 }
 
-export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button" | "template"
+export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button" | "template" | "interactive"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageTemplate = {
     name: string
