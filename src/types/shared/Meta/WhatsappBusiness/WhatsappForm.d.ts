@@ -1,3 +1,4 @@
+import { WhatsappInteractiveForm } from "../../../../class/Nagazap"
 import { TemplateInfo } from "./TemplatesInfo"
 
 export interface WhatsappForm {
@@ -39,7 +40,7 @@ export interface NagazapMediaItem {
 export interface WhatsappApiForm {
     messaging_product: "whatsapp"
     to: string
-    type: "template" | "text" | "image" | "video" | "audio" | "document"
+    type: "template" | "text" | "image" | "video" | "audio" | "document" | "interactive"
     template?: {
         name: string
         language: {
@@ -56,6 +57,7 @@ export interface WhatsappApiForm {
     image?: NagazapMediaItem
     video?: NagazapMediaItem
     recipient_type?: "individual"
+    interactive?: WhatsappInteractiveForm
 }
 
 export interface OvenForm {

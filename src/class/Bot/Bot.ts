@@ -7,7 +7,7 @@ import { Edge, Node, ReactFlowJsonObject } from "@xyflow/react"
 import Fuse from "fuse.js"
 import { convertFile } from "../../tools/convertMedia"
 import { saveFile } from "../../tools/saveFile"
-import { NagazapMediaForm } from "../Nagazap"
+import { NagazapMediaForm, WhatsappInteractiveForm } from "../Nagazap"
 import { file2base64 } from "../../tools/file2base64"
 import { sleep } from "../../tools/sleep"
 import { NodeAction } from "./NodeAction"
@@ -34,6 +34,7 @@ export interface FlowNodeData {
     }
     actions?: NodeAction[]
     next_node_id?: string
+    interactive?: WhatsappInteractiveForm
 }
 export interface FlowNode extends Node {
     data: FlowNodeData
@@ -78,7 +79,7 @@ export interface PausedInteraction {
 export interface BotMessageForm {
     message: string
     chat_id: string
-    response: (text: string, media?: WashimaMediaForm | NagazapMediaForm) => Promise<void>
+    response: (text: string, media?: WashimaMediaForm | NagazapMediaForm, interactive?: WhatsappInteractiveForm) => Promise<void>
     other_bots: Bot[]
     platform: "nagazap" | "washima"
     platform_id: string
@@ -330,7 +331,7 @@ export class Bot {
                             : { url: message_node.media.url, type: message_node.media.type }
                         : undefined
 
-                    await data.response(message_node.value, media)
+                    await data.response(message_node.value, media, message_node.interactive)
                     if (message_node.actions) {
                         for (const actionDto of message_node.actions) {
                             const action = new NodeAction(actionDto)
@@ -464,7 +465,7 @@ export class Bot {
             return nodesData
         } else {
             const options = this.getNodeChildren(chat.current_node_id).map((node) => node.data.value)
-            return [{ value: `Não entendi. As opções são:\n* ${options.join("\n* ")}`, media: undefined, actions: undefined }]
+            return [{ value: `Não entendi. As opções são:\n* ${options.join("\n* ")}`, media: undefined, actions: undefined, interactive: undefined }]
         }
     }
 

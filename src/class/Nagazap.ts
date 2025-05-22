@@ -34,6 +34,36 @@ import { convertCsvToXlsx } from "@aternus/csv-to-xlsx"
 import { Board } from "./Board/Board"
 import { normalizePhoneNumber } from "../tools/normalize"
 
+export interface WhatsappListAction {
+    button: string
+    sections: {
+        title: string
+        rows: {
+            id: string
+            title: string
+            description: string
+        }[]
+    }[]
+}
+
+export interface WhastappButtonAction {
+    buttons: {
+        type: "reply"
+        reply: {
+            id: string
+            title: string
+        }
+    }[]
+}
+
+export interface WhatsappInteractiveForm {
+    type: "list" | "button"
+    body: {
+        text: string
+    }
+    action: WhatsappListAction | WhastappButtonAction
+}
+
 export type NagaMessageType = "text" | "reaction" | "sticker" | "image" | "audio" | "video" | "button" | "template"
 export type NagaMessagePrisma = Prisma.NagazapMessageGetPayload<{}>
 export type NagaMessageTemplate = {
@@ -45,6 +75,7 @@ export type NagaMessageTemplate = {
 }
 export type NagaMessageForm = Omit<Prisma.NagazapMessageGetPayload<{}>, "id" | "nagazap_id" | "template"> & {
     template?: NagaMessageTemplate
+    interactive?: WhatsappInteractiveForm
 }
 export type NagaTemplatePrisma = Prisma.NagaTemplateGetPayload<{}>
 export const nagazap_include = Prisma.validator<Prisma.NagazapInclude>()({ company: { include: company_include } })
@@ -58,6 +89,7 @@ export interface NagazapResponseForm {
     number: string
     text: string
     media?: NagazapMediaForm
+    interactive?: WhatsappInteractiveForm
 }
 interface BuildHeadersOptions {
     upload?: boolean
@@ -532,7 +564,7 @@ export class Nagazap {
                 nagazap_id: this.id,
                 from: normalizePhoneNumber(data.from),
                 timestamp: (Number(data.timestamp) * 1000).toString(),
-                template: template ? JSON.stringify(template) : undefined,
+                template: data.interactive ? JSON.stringify(data.interactive) : template ? JSON.stringify(template) : undefined,
             },
         })
 
@@ -553,7 +585,8 @@ export class Nagazap {
                     platform_id: this.id,
                     message: message.text,
                     chat_id: message.from,
-                    response: (text, media) => this.sendResponse({ number: message.from, text, media: media as NagazapMediaForm }),
+                    response: (text, media, interactive) =>
+                        this.sendResponse({ number: message.from, text, media: media as NagazapMediaForm, interactive }),
                     other_bots: bots.filter((item) => item.id !== bot.id),
                 })
             })
@@ -904,9 +937,10 @@ export class Nagazap {
 
         const form: WhatsappApiForm = {
             messaging_product: "whatsapp",
-            type: data.media ? data.media.type : "text",
+            type: data.media ? data.media.type : data.interactive ? "interactive" : "text",
             to: "+55" + number,
             recipient_type: "individual",
+            interactive: data.interactive ? data.interactive : undefined,
         }
 
         if (form.type === "text") {
@@ -922,7 +956,8 @@ export class Nagazap {
             name: this.displayPhone!,
             text: data.text,
             timestamp: (new Date().getTime() / 1000).toString(),
-            type: "text",
+            type: data.interactive ? "interactive" : "text",
+            interactive: data.interactive,
             from_bot: null,
         })
         socket?.emit("nagazap:response", message)
