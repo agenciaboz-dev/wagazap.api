@@ -770,11 +770,11 @@ export class Washima {
         let text = _text
 
         if (interactive && text) {
-            text = `${text}\n___`
+            text = `${text}`
             if (interactive.type === "button") {
                 ;(interactive.action as WhastappButtonAction).buttons.forEach((button, index) => {
                     const count = index + 1
-                    text = `${text}\n\n➡️ *${count}.* ${button.reply.title}`
+                    text = `${text}\n\n> \`${count}\` ${button.reply.title}`
                 })
             }
         }
