@@ -90,6 +90,7 @@ export interface NagazapResponseForm {
     text: string
     media?: NagazapMediaForm
     interactive?: WhatsappInteractiveForm
+    bot_name?: string
 }
 interface BuildHeadersOptions {
     upload?: boolean
@@ -244,6 +245,7 @@ export class NagaMessage {
     type: NagaMessageType
     nagazap_id: string
     template: TemplateInfo | null
+    from_bot: string | null
 
     constructor(data: NagaMessagePrisma) {
         this.id = data.id
@@ -254,6 +256,7 @@ export class NagaMessage {
         this.name = data.name
         this.type = data.type as NagaMessageType
         this.template = data.template ? JSON.parse(data.template as string) : null
+        this.from_bot = data.from_bot
     }
 }
 
@@ -589,7 +592,7 @@ export class Nagazap {
                     message: message.text,
                     chat_id: message.from,
                     response: (text, media, interactive) =>
-                        this.sendResponse({ number: message.from, text, media: media as NagazapMediaForm, interactive }),
+                        this.sendResponse({ number: message.from, text, media: media as NagazapMediaForm, interactive, bot_name: bot.name }),
                     other_bots: bots.filter((item) => item.id !== bot.id),
                 })
             })
@@ -965,7 +968,7 @@ export class Nagazap {
             timestamp: (new Date().getTime() / 1000).toString(),
             type: data.interactive ? "interactive" : "text",
             interactive: data.interactive,
-            from_bot: null,
+            from_bot: data.bot_name || null,
         })
         socket?.emit("nagazap:response", message)
 

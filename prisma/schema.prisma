@@ -48,7 +48,7 @@ model NagazapMessage {
     type        String      @default("text")
     template    Json?
     nagazap_id  String
-    from_bot    Boolean?
+    from_bot    String?
     nagazap     Nagazap     @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }
 
@@ -102,7 +102,7 @@ model WashimaMessage {
     replied_to  Json?
     forwarded   Boolean         @default(false)
     phone_only  Boolean?
-    from_bot    Boolean?
+    from_bot    String?
     call        Json?
     contact_id  String?
 

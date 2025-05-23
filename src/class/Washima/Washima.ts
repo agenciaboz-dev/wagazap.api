@@ -410,7 +410,7 @@ export class Washima {
         }
     }
 
-    async handleNewMessage(message: Message, sendingNow?: boolean) {
+    async handleNewMessage(message: Message, sendingNow?: boolean, from_bot?: string) {
         const handler = async (message: WAWebJS.Message) => {
             if (message.id.remote === "status@broadcast") return
             if (!sendingNow && (await WashimaMessage.findBySid(message.id._serialized))) return
@@ -463,6 +463,7 @@ export class Washima {
                     washima_id: this.id,
                     message,
                     isGroup: chat.isGroup,
+                    from_bot: from_bot,
                 },
                 this.info.pushname,
                 contact
@@ -483,7 +484,7 @@ export class Washima {
                         message: message.body,
                         chat_id: chat.id._serialized,
                         response: (text, media, interactive) =>
-                            this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm, undefined, true, interactive),
+                            this.sendMessage(chat.id._serialized, text, media as WashimaMediaForm, undefined, bot.name, interactive),
                         other_bots: bots.filter((item) => item.id !== bot.id),
                     })
                 })
@@ -761,7 +762,7 @@ export class Washima {
         _text?: string,
         media?: WashimaMediaForm,
         replyMessage?: WashimaMessage,
-        from_bot?: boolean,
+        from_bot?: string,
         interactive?: WhatsappInteractiveForm
     ) {
         const mediaMessage = media ? new MessageMedia(media.mimetype, media.base64, media.name, media.size) : undefined
@@ -795,7 +796,7 @@ export class Washima {
             quotedMessageId: replyMessage?.sid,
         })
 
-        await this.handleNewMessage(message, true)
+        await this.handleNewMessage(message, true, from_bot)
 
         if (!from_bot) {
             const company = await Company.getById(this.companies[0].id)

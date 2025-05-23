@@ -37,6 +37,7 @@ export interface WashimaMessageForm {
     chat_id: string
     isGroup?: boolean
     createOnly?: boolean
+    from_bot?: string
 }
 
 export interface WashimaCall {
@@ -67,6 +68,7 @@ export class WashimaMessage {
     phone_only: boolean | null
     call: WashimaCall | null
     contact_id: string | null
+    from_bot: string | null
 
     static async getChatMessages(washima_id: string, chat_id: string, is_group: boolean, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -177,6 +179,7 @@ export class WashimaMessage {
                           })
                         : undefined,
                 contact_id: normalizeContactId(contact.id._serialized),
+                from_bot: data.from_bot,
             },
         })
 
@@ -249,5 +252,6 @@ export class WashimaMessage {
         this.phone_only = data.phone_only
         this.call = data.call ? (JSON.parse(data.call as string) as WashimaCall) : null
         this.contact_id = data.contact_id
+        this.from_bot = data.from_bot
     }
 }
