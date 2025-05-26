@@ -408,7 +408,7 @@ export class Nagazap {
 
     static async sendResponse(id: string, data: NagazapResponseForm, socket?: Socket) {
         const nagazap = await Nagazap.getById(id)
-        await nagazap.sendResponse(data)
+        await nagazap.sendMessage(data)
     }
 
     constructor(data: NagazapPrisma) {
@@ -592,7 +592,7 @@ export class Nagazap {
                     message: message.text,
                     chat_id: message.from,
                     response: (text, media, interactive) =>
-                        this.sendResponse({ number: message.from, text, media: media as NagazapMediaForm, interactive, bot_name: bot.name }),
+                        this.sendMessage({ number: message.from, text, media: media as NagazapMediaForm, interactive, bot_name: bot.name }),
                     other_bots: bots.filter((item) => item.id !== bot.id),
                 })
             })
@@ -649,7 +649,7 @@ export class Nagazap {
         return response.data.id as string
     }
 
-    async sendMessage(message: WhatsappForm) {
+    async sendTemplateMessage(message: WhatsappForm) {
         const number = message.number.toString().replace(/\D/g, "")
         if (this.blacklist.find((item) => item.number === (number.length == 10 ? number : number.slice(0, 2) + number.slice(3)))) {
             console.log(`mensagem não enviada para ${number} pois está na blacklist`)
@@ -752,7 +752,7 @@ export class Nagazap {
 
     async bake() {
         const batch = this.stack.slice(0, this.batchSize)
-        const sent = await Promise.all(batch.map(async (message) => this.sendMessage(message)))
+        const sent = await Promise.all(batch.map(async (message) => this.sendTemplateMessage(message)))
 
         const template = batch[0].template
         NagaTemplate.updateSentNumber(template, batch.length)
@@ -934,7 +934,7 @@ export class Nagazap {
         io.emit(`nagazap:${this.id}:update`, this)
     }
 
-    async sendResponse(data: NagazapResponseForm, socket?: Socket) {
+    async sendMessage(data: NagazapResponseForm, socket?: Socket) {
         const number = data.number.toString().replace(/\D/g, "")
 
         const form: WhatsappApiForm = {
