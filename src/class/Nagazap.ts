@@ -246,6 +246,7 @@ export class NagaMessage {
     nagazap_id: string
     template: TemplateInfo | null
     from_bot: string | null
+    media_url: string | null
 
     constructor(data: NagaMessagePrisma) {
         this.id = data.id
@@ -257,6 +258,7 @@ export class NagaMessage {
         this.type = data.type as NagaMessageType
         this.template = data.template ? JSON.parse(data.template as string) : null
         this.from_bot = data.from_bot
+        this.media_url = data.media_url
     }
 }
 
@@ -571,6 +573,7 @@ export class Nagazap {
                 from: normalizePhoneNumber(data.from),
                 timestamp: (Number(data.timestamp) * 1000).toString(),
                 template: data.interactive ? JSON.stringify(data.interactive) : template ? JSON.stringify(template) : undefined,
+                media_url: data.media_url,
             },
         })
 
@@ -678,6 +681,7 @@ export class Nagazap {
                 type: "template",
                 template: form.template,
                 from_bot: null,
+                media_url: null,
             })
         } catch (error) {
             if (error instanceof AxiosError) {
@@ -965,6 +969,7 @@ export class Nagazap {
             type: data.interactive ? "interactive" : "text",
             interactive: data.interactive,
             from_bot: data.bot_name || null,
+            media_url: data.media?.url || null,
         })
         socket?.emit("nagazap:response", message)
 

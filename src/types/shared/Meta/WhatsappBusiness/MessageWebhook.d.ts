@@ -46,11 +46,13 @@ export interface MessageWebhook {
                                     mime_type: "image/jpeg"
                                     sha256: string
                                     id: string
+                                    caption?: string
                                 }
                                 video?: {
                                     mime_type: string
                                     sha256: string
                                     id: string
+                                    caption?: string
                                 }
                                 audio?: {
                                     mime_type: string

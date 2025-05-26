@@ -38,13 +38,13 @@ router.post("/messages", async (request: Request, response: Response) => {
                     console.log("incoming message webhook")
                     change.value.messages?.forEach(async (message) => {
                         console.log(message)
-                        const data_types: { type: NagaMessageType; data?: string }[] = [
-                            { type: "audio", data: message.audio?.id },
-                            { type: "image", data: message.image?.id },
+                        const data_types: { type: NagaMessageType; data?: string; media_url?: string }[] = [
+                            { type: "audio", media_url: message.audio?.id },
+                            { type: "image", data: message.image?.caption, media_url: message.image?.id },
                             { type: "reaction", data: message.reaction?.emoji },
-                            { type: "sticker", data: message.sticker?.id },
+                            { type: "sticker", media_url: message.sticker?.id },
                             { type: "text", data: message.text?.body },
-                            { type: "video", data: message.video?.id },
+                            { type: "video", data: message.video?.caption, media_url: message.video?.id },
                             { type: "button", data: message.button?.text },
                             {
                                 type: "interactive",
@@ -57,20 +57,21 @@ router.post("/messages", async (request: Request, response: Response) => {
                             },
                         ]
                         const data = data_types.find((item) => item.type === message.type)
-                        if (data && data.data) {
+                        if (data && data.media_url) {
                             if (!["text", "button", "reaction", "interactive"].includes(data.type)) {
-                                const media_url = await nagazap.downloadMedia(data.data)
-                                data.data = media_url
+                                const media_url = await nagazap.downloadMedia(data.media_url)
+                                data.media_url = media_url
                             }
                         }
 
                         nagazap.saveMessage({
                             from: message.from.slice(2),
-                            text: data?.data || "**EM DESENVOLVIMENTO**",
+                            text: data?.data || "",
                             timestamp: message.timestamp,
                             name: change.value.contacts[0].profile?.name || "",
                             type: message.type,
                             from_bot: null,
+                            media_url: data?.media_url || null,
                         })
                     })
                 }

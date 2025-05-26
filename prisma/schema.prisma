@@ -49,6 +49,7 @@ model NagazapMessage {
     template    Json?
     nagazap_id  String
     from_bot    String?
+    media_url   String?
     nagazap     Nagazap     @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }
 
