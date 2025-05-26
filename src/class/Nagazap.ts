@@ -936,10 +936,6 @@ export class Nagazap {
 
     async sendResponse(data: NagazapResponseForm, socket?: Socket) {
         const number = data.number.toString().replace(/\D/g, "")
-        if (this.blacklist.find((item) => item.number === (number.length == 10 ? number : number.slice(0, 2) + number.slice(3)))) {
-            console.log(`mensagem não enviada para ${number} pois está na blacklist`)
-            return
-        }
 
         const form: WhatsappApiForm = {
             messaging_product: "whatsapp",
