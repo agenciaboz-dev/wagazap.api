@@ -208,9 +208,9 @@ export class Washima {
     static async initialize() {
         console.log("initializing washimas")
         const washimas = await Washima.list()
-        console.log(`${washimas.length} whatsapp numbers`)
 
         Washima.waitingList = washimas.filter((washima) => !washima.stopped)
+        console.log(`${washimas.length} whatsapp numbers, initializing ${Washima.waitingList.length}`)
     }
 
     static push(washima: Washima) {
@@ -329,7 +329,6 @@ export class Washima {
         this.stopped = data.stopped
         this.status = this.stopped ? "stopped" : "loading"
 
-        console.log(this.number)
 
         this.client = new Client({
             authStrategy: new LocalAuth({ dataPath: `static/washima/auth/whatsapp.auth.${this.id}` }),

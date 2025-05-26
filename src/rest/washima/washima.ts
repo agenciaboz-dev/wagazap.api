@@ -41,11 +41,13 @@ router.get("/", async (request: Request, response: Response) => {
                 return runningClient ? runningClient : new Washima(washima)
             })
 
-            washimas.forEach((washima) => {
-                if (!instanced.some((item) => item.id === washima.id)) {
-                    washima.status = "loading"
-                }
-            })
+            // washimas.forEach((washima) => {
+            //     if (!instanced.some((item) => item.id === washima.id)) {
+            //         washima.status = "loading"
+            //     }
+            // })
+
+            console.log({ washimas })
             return response.json(washimas)
         }
     }
