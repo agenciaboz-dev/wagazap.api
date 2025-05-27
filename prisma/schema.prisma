@@ -53,7 +53,6 @@ model NagazapMessage {
     nagazap     Nagazap     @relation(fields: [nagazap_id], references: [id], onDelete: Cascade)
 }
 
-
 model Washima {
     id              String              @id
     name            String

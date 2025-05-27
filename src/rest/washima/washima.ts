@@ -286,7 +286,7 @@ router.post("/restart", async (request: UserRequest, response: Response) => {
     const data = request.body as { washima_id: string }
 
     try {
-        const washima = Washima.find(data.washima_id)
+        const washima = Washima.find(data.washima_id) || (await Washima.query(data.washima_id))
         if (washima) {
             Log.new({
                 company_id: washima.companies[0].id,

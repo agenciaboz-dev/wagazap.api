@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client"
-import WAWebJS, { Client, Contact, LocalAuth, Message, MessageMedia, MessageTypes } from "whatsapp-web.js"
+import WAWebJS, { Client, Contact, LocalAuth, Message, MessageMedia, MessageTypes, RemoteAuth } from "whatsapp-web.js"
 import { prisma } from "../../prisma"
 import { FileUpload, WithoutFunctions } from "../helpers"
 import { uid } from "uid"
@@ -19,8 +19,6 @@ import { Company } from "../Company"
 import { Bot } from "../Bot/Bot"
 import { sleep } from "../../tools/sleep"
 import { Board } from "../Board/Board"
-import { existsSync, mkdirSync, writeFileSync } from "fs"
-import path from "path"
 import { normalizeContactId } from "../../tools/normalize"
 import { Mutex } from "async-mutex"
 import { WhastappButtonAction, WhatsappInteractiveForm, WhatsappListAction } from "../Nagazap"
@@ -196,6 +194,7 @@ export class Washima {
         const data = await prisma.washima.findUnique({ where: { id } })
         if (!data) throw "washima não encontrado"
         const washima = new Washima(data)
+        washima.companies = await Company.getCompaniesFromWashimaId(washima.id)
         return washima
     }
 
@@ -329,9 +328,14 @@ export class Washima {
         this.stopped = data.stopped
         this.status = this.stopped ? "stopped" : "loading"
 
-
         this.client = new Client({
             authStrategy: new LocalAuth({ dataPath: `static/washima/auth/whatsapp.auth.${this.id}` }),
+            // authStrategy: new RemoteAuth({
+            //     store: new PrismaRemoteAuthStore(),
+            //     clientId: this.id,
+            //     backupSyncIntervalMs: 1000 * 60 * 5,
+            //     dataPath: path.join(process.cwd(), "wwebjs_sessions"),
+            // }),
             puppeteer: {
                 args: [
                     "--no-sandbox",
@@ -375,6 +379,7 @@ export class Washima {
                     "--disable-software-rasterizer",
                 ],
                 executablePath: "/usr/bin/google-chrome-stable",
+                // userDataDir: `static/washima/auth/whatsapp.auth.${this.id}/ChromeData`,
             },
             pairWithPhoneNumber: this.number
                 ? {
@@ -387,7 +392,7 @@ export class Washima {
         this.chats = []
         this.contact = ""
     }
-
+    //
     async handleAck(message: Message) {
         try {
             await mutex.runExclusive(async () => {
@@ -507,14 +512,22 @@ export class Washima {
             // }
         }
     }
+    //
 
     async initialize() {
         console.log(`initializing ${this.name} - ${this.number}`)
         this.status = "loading"
 
         try {
-            const companies = await Company.getCompaniesFromWashimaId(this.id)
-            this.companies = companies
+            // const sessionDir = path.join(__dirname, "wwebjs_auth", `RemoteAuth-${this.id}`)
+            // if (existsSync(sessionDir)) {
+            //     rmSync(sessionDir, { recursive: true, force: true })
+            // }
+
+            if (this.companies.length === 0) {
+                const companies = await Company.getCompaniesFromWashimaId(this.id)
+                this.companies = companies
+            }
             Washima.push(this)
             const io = getIoInstance()
             this.emit()
@@ -824,7 +837,6 @@ export class Washima {
 
         return media
     }
-
     async clearSingleton() {
         try {
             await deleteDirectory(`static/washima/auth/${this.id}/session/SingletonLock`)
@@ -839,10 +851,10 @@ export class Washima {
         try {
             await this.setStopped()
             await this.client.destroy()
+
             this.emit()
             Washima.waitingList = Washima.waitingList.filter((item) => item.id !== this.id)
             Washima.initializing.delete(this.id)
-            await this.clearSingleton()
         } catch (error) {
             console.log(error)
         }
@@ -862,7 +874,8 @@ export class Washima {
             this.status = "loading"
             this.emit()
             console.log("inicializando de novo")
-            await this.client.initialize()
+            // await this.client.initialize()
+            await this.initialize()
         } catch (error) {
             console.log("error initializing")
             console.log(error)
