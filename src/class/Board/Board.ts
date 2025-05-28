@@ -351,66 +351,46 @@ export class Board {
         const washima = Washima.find(data.washima_id)
         if (washima) {
             console.log(`syncing ${washima.name}`)
-            const messages = await WashimaMessage.getWashimaMessages(data.washima_id)
-            console.log(messages.length)
+            const wweb_chats = await washima.client.getChats()
             const chats: Chat[] = []
 
-            for (const message of messages) {
-                console.log(`starting message ${messages.indexOf(message) + 1} de ${messages.length}`)
-                const chatIndex = chats.findIndex((chat) => chat.washima_chat_id === message.chat_id)
+            for (const wweb_chat of wweb_chats) {
+                // if (message.from === "0@c.us") {
+                //         continue
+                //     }
 
-                if (messages.indexOf(message) + 1 === 2053) {
-                    console.log({ message })
-                }
-
-                if (message.from === "0@c.us") {
+                if (data.unread_only && wweb_chat.unreadCount === 0) {
                     continue
                 }
 
-                if (chatIndex >= 0 && chats[chatIndex].washima_id === data.washima_id) {
+                const lastMessage = await WashimaMessage.findBySid(wweb_chat.lastMessage.id._serialized)
+                if (!lastMessage) {
+                    console.log("last message now found")
                     continue
                 }
 
-                const washima_chat = await washima.client.getChatById(message.chat_id)
-                if (data.unread_only && washima_chat.unreadCount === 0) {
-                    continue
-                }
+                const contact = await wweb_chat.getContact()
 
-                const lastMessage = (await WashimaMessage.getChatMessages(washima.id, washima_chat.id._serialized, washima_chat.isGroup, 0, 1))[0]
-                if (messages.indexOf(message) + 1 === 2053) {
-                    console.log({ lastMessage })
-                }
-
-                const contact = await washima_chat.getContact()
-                if (messages.indexOf(message) + 1 === 2053) {
-                    console.log({ contact })
-                }
-
-                const profilePic = await pTimeout(washima.getCachedProfilePicture(washima_chat.id._serialized, "chat"), {
+                const profilePic = await pTimeout(washima.getCachedProfilePicture(wweb_chat.id._serialized, "chat"), {
                     milliseconds: 10 * 1000,
                 }).catch(() => {})
-                if (messages.indexOf(message) + 1 === 2053) {
-                    console.log({ profilePic })
-                }
 
                 const chat = new Chat({
                     id: uid(),
                     last_message: lastMessage,
                     name: contact.name || contact.pushname,
                     phone: contact.number,
-                    unread_count: washima_chat.unreadCount,
-                    washima_chat_id: washima_chat.id._serialized,
+                    unread_count: wweb_chat.unreadCount,
+                    washima_chat_id: wweb_chat.id._serialized,
                     washima_id: data.washima_id,
-                    is_group: washima_chat.isGroup,
+                    is_group: wweb_chat.isGroup,
                     profile_pic: profilePic?.url,
                 })
-                if (messages.indexOf(message) + 1 === 2053) {
-                    console.log({ chat })
-                }
 
                 chats.push(chat)
-                console.log(`done ${messages.indexOf(message) + 1} de ${messages.length}`)
             }
+
+            console.log({ chats: chats.length })
 
             console.log("building target room")
             const target_room_index = this.rooms.findIndex((room) => room.id === (data.room_id || this.entry_room_id))

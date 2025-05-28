@@ -235,8 +235,12 @@ export class Washima {
     }
 
     static async delete(washima_id: string) {
-        const deleted = await prisma.washima.delete({ where: { id: washima_id } })
-        const washima = Washima.find(deleted.id)
+        try {
+            const deleted = await prisma.washima.delete({ where: { id: washima_id } })
+        } catch (error) {
+            console.log(error)
+        }
+        const washima = Washima.find(washima_id) || (await Washima.query(washima_id))
         if (washima) {
             try {
                 const chats = await washima.client.getChats()
