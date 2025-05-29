@@ -2,7 +2,7 @@ import { Socket } from "socket.io"
 import { Server as SocketIoServer } from "socket.io"
 import { Server as HttpServer } from "http"
 import { Server as HttpsServer } from "https"
-import { Washima, WashimaMediaForm } from "../class/Washima/Washima"
+import { Washima, WashimaDeleteMessagesForm, WashimaMediaForm } from "../class/Washima/Washima"
 import { WashimaMessage } from "../class/Washima/WashimaMessage"
 import { Nagazap, NagazapResponseForm } from "../class/Nagazap"
 import { Board } from "../class/Board/Board"
@@ -41,6 +41,8 @@ export const handleSocket = (socket: Socket) => {
     socket.on("washima:message:contact", (washima_id: string, contact_id: string, message_id: string) =>
         Washima.getContact(socket, washima_id, contact_id, message_id)
     )
+
+    socket.on("washima:message:delete", (washima_id: string, data: WashimaDeleteMessagesForm) => Washima.deleteMessages(socket, washima_id, data))
 
     socket.on("washima:forward", (washima_id: string, chat_id: string, destinatary_ids: string[], message_ids: string[]) =>
         Washima.forwardMessage(socket, washima_id, chat_id, destinatary_ids, message_ids)

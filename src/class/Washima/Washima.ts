@@ -31,6 +31,12 @@ export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
 export type WashimaMediaPrisma = Prisma.WashimaMediaGetPayload<{}>
 export type WashimaProfilePicPrisma = Prisma.WashimaProfilePicGetPayload<{}>
 export type WashimaStatus = "loading" | "ready" | "qrcode" | "error" | "stopped" | "pairingcode"
+
+export interface WashimaDeleteMessagesForm {
+    sids: string[]
+    everyone?: boolean
+}
+
 export interface WashimaDiskMetrics {
     messages: number
     media: number
@@ -322,6 +328,17 @@ export class Washima {
         }
     }
 
+    static async deleteMessages(socket: Socket, washima_id: string, data: WashimaDeleteMessagesForm) {
+        const washima = Washima.find(washima_id)
+        if (washima) {
+            try {
+                await washima.deleteMessages(data)
+            } catch (error) {
+                console.log(error)
+            }
+        }
+    }
+
     constructor(data: WashimaPrisma) {
         this.id = data.id
         this.name = data.name
@@ -507,6 +524,7 @@ export class Washima {
                 await mutex.runExclusive(async () => await handler(message))
             }
         } catch (error) {
+            console.log("aquiaaa")
             console.log(error)
             if (!sendingNow) {
                 mutex.release()
@@ -602,7 +620,7 @@ export class Washima {
                 this.number = this.info.wid.user.slice(2)
                 this.name = this.info.pushname
                 await this.update({ number: this.number, name: this.name })
-
+                await this.setReady()
                 this.emit()
 
                 try {
@@ -630,11 +648,13 @@ export class Washima {
             this.client.on("message_revoke_everyone", async (message, revoked) => {
                 const chat = await message.getChat()
                 try {
+                    console.log(`message revoked: ${message.id._serialized} - ${JSON.stringify(revoked, null, 4)}`)
                     const updated = await WashimaMessage.revoke(message)
                     io.emit("washima:message:update", updated, chat.id._serialized)
                     io.emit(`washima:${this.id}:message`, { chat, message: updated })
                 } catch (error) {
-                    // console.log(error)
+                    console.log("aqui")
+                    console.log(error)
                 }
                 const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
                 this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
@@ -978,7 +998,7 @@ export class Washima {
 
         this.syncing = true
         const io = getIoInstance()
-        this.status = "loading"
+        // this.status = "loading"
         this.emit()
 
         await sleep(1000)
@@ -1093,7 +1113,6 @@ export class Washima {
 
         // writeFileSync(filePath, JSON.stringify(formattedLogs))
         this.syncing = false
-        await this.setReady()
         this.emit()
     }
 
@@ -1176,6 +1195,20 @@ export class Washima {
         if (!this.stopped) {
             this.stopped = true
             await prisma.washima.update({ where: { id: this.id }, data: { stopped: true } })
+        }
+    }
+
+    async deleteMessages(data: WashimaDeleteMessagesForm) {
+        console.log(`deleting messages`)
+        console.log(data)
+
+        for (const sid of data.sids) {
+            console.log(sid)
+            const message = await this.client.getMessageById(sid)
+            console.log(message.id._serialized)
+            await message.delete(data.everyone)
+            await sleep(1000)
+            console.log("deletado")
         }
     }
 
