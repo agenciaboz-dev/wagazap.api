@@ -307,18 +307,29 @@ export class Board {
     async handleWashimaSettingsChange(data: BoardWashimaSettings[]) {
         return new Promise<boolean>(async (resolve) => {
             console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa tocou aqui")
-            const newSettings = data.filter(
-                (washima_setting) => !this.washima_settings.find((item) => item.washima_id === washima_setting.washima_id)
+            const newSettings: BoardWashimaSettings[] = []
+            const deletedSettings = this.washima_settings.filter(
+                (current_setting) => !data.find((item) => item.washima_id === current_setting.washima_id)
             )
+
+            for (const washima_setting of data) {
+                const current_setting = this.washima_settings.find((item) => item.washima_id === washima_setting.washima_id)
+                if (current_setting) {
+                    if (Object.entries(current_setting).some(([key, value]) => value !== washima_setting[key as keyof BoardWashimaSettings])) {
+                        deletedSettings.push(current_setting)
+                        newSettings.push(washima_setting)
+                    }
+                } else {
+                    newSettings.push(washima_setting)
+                }
+            }
+
 
             if (newSettings.length > 0) {
                 this.emit("sync:pending", undefined)
                 resolve(true)
             }
 
-            const deletedSettings = this.washima_settings.filter(
-                (current_setting) => !data.find((item) => item.washima_id === current_setting.washima_id)
-            )
 
             console.log({ newSettings, deletedSettings, data })
 
@@ -349,7 +360,7 @@ export class Board {
     async syncWashima(data: BoardWashimaSettings) {
         console.log({ data })
         const washima = Washima.find(data.washima_id)
-        if (washima) {
+        if (washima && washima.status === "ready") {
             console.log(`syncing ${washima.name}`)
             const wweb_chats = await washima.client.getChats()
             const chats: Chat[] = []
@@ -363,7 +374,9 @@ export class Board {
                     continue
                 }
 
-                const lastMessage = await WashimaMessage.findBySid(wweb_chat.lastMessage.id._serialized)
+                const lastMessage = wweb_chat?.lastMessage?.id?._serialized
+                    ? await WashimaMessage.findBySid(wweb_chat.lastMessage.id._serialized)
+                    : null
                 if (!lastMessage) {
                     console.log("last message now found")
                     continue
