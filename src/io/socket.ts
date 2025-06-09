@@ -44,6 +44,10 @@ export const handleSocket = (socket: Socket) => {
 
     socket.on("washima:message:delete", (washima_id: string, data: WashimaDeleteMessagesForm) => Washima.deleteMessages(socket, washima_id, data))
 
+    socket.on("washima:message:react", (washima_id: string, message_id: string, emoji: string) =>
+        Washima.newReaction(socket, washima_id, message_id, emoji)
+    )
+
     socket.on("washima:forward", (washima_id: string, chat_id: string, destinatary_ids: string[], message_ids: string[]) =>
         Washima.forwardMessage(socket, washima_id, chat_id, destinatary_ids, message_ids)
     )

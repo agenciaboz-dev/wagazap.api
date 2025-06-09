@@ -105,6 +105,7 @@ model WashimaMessage {
     from_bot    String?
     call        Json?
     contact_id  String?
+    reactions   Json?
 
     @@fulltext([body])
 }

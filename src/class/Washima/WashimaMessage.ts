@@ -4,6 +4,8 @@ import WAWebJS, { Contact } from "whatsapp-web.js"
 import { WashimaMessageId } from "./Washima"
 import Fuse from "fuse.js"
 import { normalizeContactId } from "../../tools/normalize"
+import { getIoInstance } from "../../io/socket"
+import { Socket } from "socket.io"
 
 export type MessageType =
     | "ptt"
@@ -46,6 +48,19 @@ export interface WashimaCall {
     callParticipants: any
 }
 
+export interface WashimaReaction {
+    id: string
+    orphan: number
+    orphanReason?: string
+    timestamp: number
+    reaction: string
+    read: boolean
+    msgId: object
+    msgSid: string
+    senderId: string
+    ack?: number
+}
+
 export class WashimaMessage {
     sid: string
     washima_id: string
@@ -69,6 +84,7 @@ export class WashimaMessage {
     call: WashimaCall | null
     contact_id: string | null
     from_bot: string | null
+    reactions = new Map<string, WashimaReaction>()
 
     static async getChatMessages(washima_id: string, chat_id: string, is_group: boolean, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
@@ -170,6 +186,7 @@ export class WashimaMessage {
                 replied_to: JSON.stringify(washimaQuotedMessage) || undefined,
                 forwarded: message.isForwarded,
                 phone_only: (message as any)._data?.subtype === "phone_only_feature",
+
                 call:
                     message.type === "call_log"
                         ? JSON.stringify({
@@ -180,6 +197,7 @@ export class WashimaMessage {
                         : undefined,
                 contact_id: normalizeContactId(contact.id._serialized),
                 from_bot: data.from_bot,
+                reactions: JSON.stringify([]),
             },
         })
 
@@ -253,5 +271,34 @@ export class WashimaMessage {
         this.call = data.call ? (JSON.parse(data.call as string) as WashimaCall) : null
         this.contact_id = data.contact_id
         this.from_bot = data.from_bot
+        if (data.reactions) {
+            try {
+                console.log(data.reactions)
+                this.reactions = new Map(JSON.parse(data.reactions as string).map((item: WashimaReaction) => [item.senderId, item]))
+                console.log(this.reactions)
+            } catch (error) {}
+        }
+    }
+
+    async handleReaction(reaction: WAWebJS.Reaction) {
+        const sender_id = normalizeContactId(reaction.senderId)
+        if (reaction.reaction === "") {
+            this.reactions.delete(sender_id)
+        } else {
+            console.log(sender_id)
+            this.reactions.set(sender_id, { ...reaction, msgSid: reaction.msgId._serialized, id: reaction.id._serialized, senderId: sender_id })
+        }
+
+        await prisma.washimaMessage.update({ where: { sid: this.sid }, data: { reactions: JSON.stringify(Array.from(this.reactions.values())) } })
+        this.emit()
+    }
+
+    emit() {
+        const io = getIoInstance()
+        io.emit("washima:message:update", this, this.chat_id)
+    }
+
+    toJSON() {
+        return { ...this, reactions: Array.from(this.reactions.values()) }
     }
 }

@@ -286,6 +286,11 @@ export class Washima {
         }
     }
 
+    static async newReaction(socket: Socket, washima_id: string, message_id: string, emoji: string) {
+        const washima = Washima.find(washima_id)
+        await washima?.newReaction(message_id, emoji)
+    }
+
     static async sendMessage(
         socket: Socket,
         washima_id: string,
@@ -645,6 +650,14 @@ export class Washima {
                 this.handleAck(message)
             })
 
+            this.client.on("message_reaction", async (reaction) => {
+                console.log({ reaction })
+                const message = await WashimaMessage.findBySid(reaction.msgId._serialized)
+                if (message) {
+                    await message.handleReaction(reaction)
+                }
+            })
+
             this.client.on("message_revoke_everyone", async (message, revoked) => {
                 const chat = await message.getChat()
                 try {
@@ -680,6 +693,7 @@ export class Washima {
             })
 
             this.client.on("message_create", async (message) => {
+                // console.log(JSON.stringify(message, null, 4))
                 if (message.id.remote === "status@broadcast") return
                 if (await WashimaMessage.findBySid(message.id._serialized)) return
 
@@ -1210,6 +1224,15 @@ export class Washima {
             await sleep(1000)
             console.log("deletado")
         }
+    }
+
+    async newReaction(message_id: string, emoji: string) {
+        const message = await this.client.getMessageById(message_id)
+        if (!message) {
+            return
+        }
+
+        await message.react(emoji)
     }
 
     toJSON() {
