@@ -24,8 +24,6 @@ import { Mutex } from "async-mutex"
 import { WhastappButtonAction, WhatsappInteractiveForm, WhatsappListAction } from "../Nagazap"
 // import numeral from 'numeral'
 
-const mutex = new Mutex()
-
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
 export type WashimaPrisma = Prisma.WashimaGetPayload<{}>
 export type WashimaMediaPrisma = Prisma.WashimaMediaGetPayload<{}>
@@ -144,6 +142,7 @@ export class Washima {
     companies: Company[] = []
     syncing = false
     status: WashimaStatus
+    mutex: Mutex
 
     static initializeBatch = 4
     static washimas: Washima[] = []
@@ -353,6 +352,7 @@ export class Washima {
         this.ready = false
         this.stopped = data.stopped
         this.status = this.stopped ? "stopped" : "loading"
+        this.mutex = new Mutex()
 
         this.client = new Client({
             authStrategy: new LocalAuth({ dataPath: `static/washima/auth/whatsapp.auth.${this.id}` }),
@@ -421,7 +421,7 @@ export class Washima {
     //
     async handleAck(message: Message) {
         try {
-            await mutex.runExclusive(async () => {
+            await this.mutex.runExclusive(async () => {
                 const io = getIoInstance()
                 const chat = await message.getChat()
                 try {
@@ -436,7 +436,7 @@ export class Washima {
                 this.emit()
             })
         } catch (error) {
-            mutex.release()
+            this.mutex.release()
         }
     }
 
@@ -526,13 +526,13 @@ export class Washima {
             if (sendingNow) {
                 await handler(message)
             } else {
-                await mutex.runExclusive(async () => await handler(message))
+                await this.mutex.runExclusive(async () => await handler(message))
             }
         } catch (error) {
             console.log("aquiaaa")
             console.log(error)
             if (!sendingNow) {
-                mutex.release()
+                this.mutex.release()
             }
             // if (error instanceof PrismaClientKnownRequestError && error.meta?.modelName === "WashimaMessage" && error.meta.target === "PRIMARY") {
             //     handler(message).catch((err) => console.log(err))
@@ -1216,14 +1216,19 @@ export class Washima {
         console.log(`deleting messages`)
         console.log(data)
 
-        for (const sid of data.sids) {
-            console.log(sid)
-            const message = await this.client.getMessageById(sid)
-            console.log(message.id._serialized)
-            await message.delete(data.everyone)
-            await sleep(1000)
-            console.log("deletado")
-        }
+        await this.mutex.runExclusive(async () => {
+            for (const sid of data.sids) {
+                console.log(sid)
+                const message =
+                    (await this.client.getMessageById(sid)) ||
+                    (await this.client.getMessageById(sid.replace("false_", "true_"))) ||
+                    (await this.client.getMessageById(sid.replace("true_", "false_")))
+                console.log(message.id._serialized)
+                await message.delete(data.everyone)
+                await sleep(1000)
+                console.log("deletado")
+            }
+        })
     }
 
     async newReaction(message_id: string, emoji: string) {
