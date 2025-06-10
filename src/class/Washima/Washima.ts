@@ -652,7 +652,7 @@ export class Washima {
 
             this.client.on("message_reaction", async (reaction) => {
                 console.log({ reaction })
-                const message = await WashimaMessage.findBySid(reaction.msgId._serialized)
+                const message = (await WashimaMessage.findBySid(reaction.msgId._serialized)) || (await WashimaMessage.getByWrongId(reaction.msgId.id))
                 if (message) {
                     await message.handleReaction(reaction)
                 }
