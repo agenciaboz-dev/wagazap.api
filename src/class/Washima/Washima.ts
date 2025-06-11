@@ -18,10 +18,12 @@ import numeral from "numeral"
 import { Company } from "../Company"
 import { Bot } from "../Bot/Bot"
 import { sleep } from "../../tools/sleep"
-import { Board } from "../Board/Board"
+import { Board, BoardAccess } from "../Board/Board"
 import { normalizeContactId } from "../../tools/normalize"
 import { Mutex } from "async-mutex"
 import { WhastappButtonAction, WhatsappInteractiveForm, WhatsappListAction } from "../Nagazap"
+import { User, user_include } from "../User"
+import { Department, department_include } from "../Department"
 // import numeral from 'numeral'
 
 // export const washima_include = Prisma.validator<Prisma.WashimaInclude>()({  })
@@ -1239,6 +1241,26 @@ export class Washima {
 
         await message.react(emoji)
     }
+
+    async getAccess() {
+        const users_result = await prisma.user.findMany({ where: { washimas: { some: { id: this.id } } }, include: user_include })
+        const users = users_result.map((item) => new User(item))
+
+        const departments_result = await prisma.department.findMany({ where: { washimas: { some: { id: this.id } } }, include: department_include })
+        const departments = departments_result.map((item) => new Department(item))
+
+        return { users, departments }
+    }
+
+    async changeAccess(access: BoardAccess) {
+            await prisma.washima.update({
+                where: { id: this.id },
+                data: {
+                    users: { set: [], connect: access.users.map((user) => ({ id: user.id })) },
+                    departments: { set: [], connect: access.departments.map((department) => ({ id: department.id })) },
+                },
+            })
+        }
 
     toJSON() {
         return { ...this, client: null }

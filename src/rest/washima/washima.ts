@@ -7,6 +7,7 @@ import { User } from "../../class/User"
 import { requireUserId, UserRequest } from "../../middlewares/requireUserId"
 import { Log } from "../../class/Log"
 import { requireWashimaId, WashimaRequest } from "../../middlewares/requireWashimaId"
+import { BoardAccess } from "../../class/Board/Board"
 
 const router = express.Router()
 
@@ -14,7 +15,7 @@ router.use("/tools", tools)
 
 router.get("/", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
-    const company_id = request.query.company_id as string | undefined
+    const user_id = request.query.user_id as string | undefined
 
     if (washima_id) {
         try {
@@ -25,17 +26,11 @@ router.get("/", async (request: Request, response: Response) => {
             response.status(500).send(error)
         }
     } else {
-        if (company_id) {
-            const not_instanced = await prisma.washima.findMany({
-                where: {
-                    companies: {
-                        some: {
-                            id: company_id,
-                        },
-                    },
-                },
-            })
-            const instanced = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === company_id))
+        if (user_id) {
+            const user = await User.findById(user_id)
+            if (!user) return response.status(404).send("User not found")
+            const not_instanced = await user.getWashimas()
+            const instanced = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === user_id))
             const washimas = not_instanced.map((washima) => {
                 const runningClient = Washima.washimas.find((w) => w.id === washima.id)
                 return runningClient ? runningClient : new Washima(washima)
@@ -47,8 +42,9 @@ router.get("/", async (request: Request, response: Response) => {
             //     }
             // })
 
-            console.log({ washimas })
             return response.json(washimas)
+        } else {
+            return response.status(400).send("washima_id or user_id param is required")
         }
     }
 })
@@ -280,8 +276,6 @@ router.delete("/", async (request: UserRequest, response: Response) => {
     }
 })
 
-
-
 router.post("/restart", async (request: UserRequest, response: Response) => {
     const data = request.body as { washima_id: string }
 
@@ -317,6 +311,28 @@ router.get("/stop-start", async (request: WashimaRequest & UserRequest, response
         }
 
         return response.status(201).send()
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.get("/access", async (request: WashimaRequest & UserRequest, response: Response) => {
+    try {
+        const access = await request.washima?.getAccess()
+        return response.json(access)
+    } catch (error) {
+        console.log(error)
+        response.status(500).send(error)
+    }
+})
+
+router.patch("/access", async (request: WashimaRequest & UserRequest, response: Response) => {
+    const data = request.body as BoardAccess
+
+    try {
+        await request.washima?.changeAccess(data)
+        return response.status(200).send()
     } catch (error) {
         console.log(error)
         response.status(500).send(error)

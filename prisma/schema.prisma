@@ -63,6 +63,8 @@ model Washima {
 
     companies       Company[]
     bots            Bot[]
+    departments     Department[]
+    users           User[]
 
 }
 
@@ -139,6 +141,7 @@ model User {
     logs        Log[]
     departments Department[]
     boards          Board[]
+    washimas    Washima[]
 }
 model Company {
     id              String          @id @default(uuid()) 
@@ -165,6 +168,7 @@ model Department {
     company         Company         @relation(fields: [company_id], references: [id], onDelete: Cascade)
     users           User[]
     boards          Board[]
+    washimas        Washima[]
     
 }
 

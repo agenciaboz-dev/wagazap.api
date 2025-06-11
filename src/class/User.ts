@@ -5,6 +5,7 @@ import { WithoutFunctions } from "./helpers"
 import { getIoInstance } from "../io/socket"
 import { Department, department_include } from "./Department"
 import { Board } from "./Board/Board"
+import { Washima } from "./Washima/Washima"
 
 export const user_include = Prisma.validator<Prisma.UserInclude>()({ departments: { include: department_include } })
 export type UserPrisma = Prisma.UserGetPayload<{ include: typeof user_include }>
@@ -131,5 +132,20 @@ export class User {
         }
 
         return boards
+    }
+
+    async getWashimas() {
+        let washimas: Washima[]
+        if (this.admin) {
+            const result = await prisma.washima.findMany({ where: { companies: { some: { id: this.company_id } } } })
+            washimas = result.map((item) => new Washima(item))
+        } else {
+            const result = await prisma.washima.findMany({
+                where: { OR: [{ users: { some: { id: this.id } } }, { departments: { some: { users: { some: { id: this.id } } } } }] },
+            })
+            washimas = result.map((item) => new Washima(item))
+        }
+
+        return washimas
     }
 }
