@@ -16,6 +16,7 @@ router.use("/tools", tools)
 router.get("/", async (request: Request, response: Response) => {
     const washima_id = request.query.washima_id as string | undefined
     const user_id = request.query.user_id as string | undefined
+    const company_id = request.query.company_id as string | undefined
 
     if (washima_id) {
         try {
@@ -26,10 +27,26 @@ router.get("/", async (request: Request, response: Response) => {
             response.status(500).send(error)
         }
     } else {
-        if (user_id) {
-            const user = await User.findById(user_id)
-            if (!user) return response.status(404).send("User not found")
-            const not_instanced = await user.getWashimas()
+        if (user_id || company_id) {
+            let not_instanced: Washima[] = []
+            if (user_id) {
+                const user = await User.findById(user_id)
+                if (!user) return response.status(404).send("User not found")
+                not_instanced = await user.getWashimas()
+            }
+            if (company_id) {
+                not_instanced = (
+                    await prisma.washima.findMany({
+                        where: {
+                            companies: {
+                                some: {
+                                    id: company_id,
+                                },
+                            },
+                        },
+                    })
+                ).map((item) => new Washima(item))
+            }
             const instanced = Washima.washimas.filter((washima) => washima.companies.find((company) => company.id === user_id))
             const washimas = not_instanced.map((washima) => {
                 const runningClient = Washima.washimas.find((w) => w.id === washima.id)
@@ -44,7 +61,7 @@ router.get("/", async (request: Request, response: Response) => {
 
             return response.json(washimas)
         } else {
-            return response.status(400).send("washima_id or user_id param is required")
+            return response.status(400).send("washima_id or user_id or company_id param is required")
         }
     }
 })
@@ -338,6 +355,5 @@ router.patch("/access", async (request: WashimaRequest & UserRequest, response: 
         response.status(500).send(error)
     }
 })
-
 
 export default router
