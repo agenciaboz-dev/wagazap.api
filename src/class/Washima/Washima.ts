@@ -661,20 +661,30 @@ export class Washima {
             })
 
             this.client.on("message_revoke_everyone", async (message, revoked) => {
-                const chat = await message.getChat()
                 try {
-                    console.log(`message revoked: ${message.id._serialized} - ${JSON.stringify(revoked, null, 4)}`)
-                    const updated = await WashimaMessage.revoke(message)
-                    io.emit("washima:message:update", updated, chat.id._serialized)
-                    io.emit(`washima:${this.id}:message`, { chat, message: updated })
-                } catch (error) {
-                    console.log("aqui")
-                    console.log(error)
-                }
-                const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
-                this.chats[index] = { ...chat, lastMessage: message, unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1 }
+                    this.mutex.runExclusive(async () => {
+                        const chat = await message.getChat()
+                        try {
+                            console.log(`message revoked: ${message.id._serialized} - ${JSON.stringify(revoked, null, 4)}`)
+                            const updated = await WashimaMessage.revoke(message)
+                            io.emit("washima:message:update", updated, chat.id._serialized)
+                            io.emit(`washima:${this.id}:message`, { chat, message: updated })
+                        } catch (error) {
+                            console.log("aqui")
+                            console.log(error)
+                        }
+                        const index = this.chats.findIndex((item) => item.id._serialized === chat.id._serialized)
+                        this.chats[index] = {
+                            ...chat,
+                            lastMessage: message,
+                            unreadCount: message.fromMe ? 0 : (this.chats[index]?.unreadCount || 0) + 1,
+                        }
 
-                this.emit()
+                        this.emit()
+                    })
+                } catch (error) {
+                    this.mutex.release()
+                }
             })
 
             this.client.on("message_edit", async (message, new_body, previous_body) => {
@@ -1047,11 +1057,13 @@ export class Washima {
 
                 console.log(existingChatMessages.length)
 
-                const messages = chatMessages.filter(
-                    (message) =>
-                        message.from !== "0@c.us" &&
-                        !existingChatMessages.find((item) => (chat.isGroup ? item.id.id === message.id.id : item.sid === message.id._serialized))
-                )
+                const messages = chatMessages
+                    .filter(
+                        (message) =>
+                            message.from !== "0@c.us" &&
+                            !existingChatMessages.find((item) => (chat.isGroup ? item.id.id === message.id.id : item.sid === message.id._serialized))
+                    )
+                    .filter((message) => message.type.toLocaleLowerCase() !== "revoked")
 
                 const contacts = new Map<string, Contact>()
 
@@ -1253,14 +1265,14 @@ export class Washima {
     }
 
     async changeAccess(access: BoardAccess) {
-            await prisma.washima.update({
-                where: { id: this.id },
-                data: {
-                    users: { set: [], connect: access.users.map((user) => ({ id: user.id })) },
-                    departments: { set: [], connect: access.departments.map((department) => ({ id: department.id })) },
-                },
-            })
-        }
+        await prisma.washima.update({
+            where: { id: this.id },
+            data: {
+                users: { set: [], connect: access.users.map((user) => ({ id: user.id })) },
+                departments: { set: [], connect: access.departments.map((department) => ({ id: department.id })) },
+            },
+        })
+    }
 
     toJSON() {
         return { ...this, client: null }

@@ -243,9 +243,12 @@ export class WashimaMessage {
 
                 return new WashimaMessage(data)
             } else {
+                console.log("aquiiiiiiiiiiiiiiiiiiiiiiii")
+                console.log(message)
                 throw "message not found"
             }
         } catch (error) {
+            console.log("aaaaaaaaaaaaa")
             console.log(error)
         }
     }
