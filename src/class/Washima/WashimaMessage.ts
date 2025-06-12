@@ -86,12 +86,14 @@ export class WashimaMessage {
     from_bot: string | null
     reactions = new Map<string, WashimaReaction>()
 
+    static default_messages_offset = 30
+
     static async getChatMessages(washima_id: string, chat_id: string, is_group: boolean, offset: number = 0, take?: number | null) {
         const data = await prisma.washimaMessage.findMany({
             where: { chat_id, washima_id: is_group ? undefined : washima_id },
             orderBy: { timestamp: "desc" },
             skip: offset,
-            take: take === null ? undefined : take || 10,
+            take: take === null ? undefined : take || WashimaMessage.default_messages_offset,
         })
         return data.map((item) => new WashimaMessage(item))
     }
