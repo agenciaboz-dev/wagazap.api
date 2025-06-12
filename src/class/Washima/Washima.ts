@@ -815,7 +815,7 @@ export class Washima {
     }
 
     async getMessage(message_id: string) {
-        const message = await this.client.getMessageById(message_id)
+        const message = await this.getClientMessageBySid(message_id)
         return message
     }
 
@@ -948,7 +948,7 @@ export class Washima {
                 contact = await chat.getContact()
             }
             if (target === "message") {
-                const message = await this.client.getMessageById(target_id)
+                const message = await this.getClientMessageBySid(target_id)
                 contact = await message.getContact()
             }
 
@@ -1233,10 +1233,7 @@ export class Washima {
         await this.mutex.runExclusive(async () => {
             for (const sid of data.sids) {
                 console.log(sid)
-                const message =
-                    (await this.client.getMessageById(sid)) ||
-                    (await this.client.getMessageById(sid.replace("false_", "true_"))) ||
-                    (await this.client.getMessageById(sid.replace("true_", "false_")))
+                const message = await this.getClientMessageBySid(sid)
                 console.log(message.id._serialized)
                 await message.delete(data.everyone)
                 await sleep(1000)
@@ -1245,9 +1242,20 @@ export class Washima {
         })
     }
 
+    async getClientMessageBySid(sid: string) {
+        const message =
+            (await this.client.getMessageById(sid)) ||
+            (await this.client.getMessageById(sid.replace("false_", "true_"))) ||
+            (await this.client.getMessageById(sid.replace("true_", "false_")))
+        return message
+    }
+
     async newReaction(message_id: string, emoji: string) {
-        const message = await this.client.getMessageById(message_id)
+        console.log("new reaction")
+        const message = await this.getClientMessageBySid(message_id)
+        console.log({ message_id, message, emoji })
         if (!message) {
+            console.log("message not found")
             return
         }
 
