@@ -32,6 +32,9 @@ export const handleSocket = (socket: Socket) => {
         console.log({ reason })
     })
 
+    socket.on("user:join", (user_id) => socket.join(user_id))
+    socket.on("user:leave", (user_id) => socket.leave(user_id))
+
     socket.on("washima:channel:join", (channel: string) => socket.join(channel))
     socket.on("washima:channel:leave", (channel: string) => socket.leave(channel))
 

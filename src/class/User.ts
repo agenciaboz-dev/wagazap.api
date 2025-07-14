@@ -73,6 +73,9 @@ export class User {
 
     static async delete(user_id: string) {
         const result = await prisma.user.delete({ where: { id: user_id }, include: user_include })
+        const io = getIoInstance()
+        io.to(user_id).emit("user:delete")
+
         return new User(result)
     }
 
