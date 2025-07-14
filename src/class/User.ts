@@ -45,7 +45,10 @@ export class User {
     }
 
     static async login(data: LoginForm) {
-        const result = await prisma.user.findFirst({ where: { email: data.login, password: data.password }, include: user_include })
+        const result = await prisma.user.findFirst({
+            where: { email: data.login, password: data.password, company: { active: true } },
+            include: user_include,
+        })
         if (result) return new User(result)
 
         return null
