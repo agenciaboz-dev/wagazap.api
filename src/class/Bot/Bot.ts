@@ -72,7 +72,7 @@ export interface PendingResponse {
 }
 
 export interface PausedInteraction {
-    expiry: number
+    expiry: number | null
     chat_id: string
 }
 
@@ -269,8 +269,8 @@ export class Bot {
         await prisma.bot.delete({ where: { id: this.id } })
     }
 
-    pauseChat(chat_id: string, minutes: number) {
-        const paused_interaction: PausedInteraction = { chat_id, expiry: new Date().getTime() + 1000 * 60 * minutes }
+    pauseChat(chat_id: string, minutes?: number) {
+        const paused_interaction: PausedInteraction = { chat_id, expiry: minutes ? new Date().getTime() + 1000 * 60 * minutes : null }
         this.paused_chats.set(chat_id, paused_interaction)
         this.save()
         this.closeChat(chat_id, true)
@@ -289,7 +289,7 @@ export class Bot {
         const paused_interaction = this.paused_chats.get(chat_id)
 
         if (paused_interaction) {
-            if (paused_interaction.expiry < new Date().getTime()) {
+            if (paused_interaction.expiry && paused_interaction.expiry < new Date().getTime()) {
                 this.unpauseChat(chat_id)
                 return false
             }

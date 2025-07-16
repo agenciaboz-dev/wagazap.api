@@ -72,7 +72,8 @@ router.get("/toggle", async (request: BotRequest, response: Response) => {
             if (bot.isPaused(chat_id)) {
                 bot.unpauseChat(chat_id)
             } else {
-                bot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
+                bot.pauseChat(chat_id) // ! pra sempre
+                // bot.pauseChat(chat_id, 1000 * 60 * 60 * 24) // 1 day
             }
 
             return response.json({ activeBot: null, paused: bot.isPaused(chat_id) ? bot : null })
